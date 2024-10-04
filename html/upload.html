@@ -1,0 +1,39 @@
+<HTML>
+<HEAD>
+<TITLE>Upload to this server</TITLE>
+</HEAD>
+<BODY>
+You can only upload one file at a time. Files will be kept a maximum of 30 days.<p>
+<i>There is a 2GB file size limit.  There is also no progress indicator.</i>
+<FORM ENCTYPE="multipart/form-data" ACTION="cgi-bin/up.cgi" METHOD="POST">
+<table>
+  <tr>
+    <td align="right">
+      Where to upload:
+    </td>
+    <td>
+<SELECT NAME="dir">
+<OPTION VALUE="incoming">Incoming</OPTION>
+</SELECT>
+    </td>
+  </tr>
+  <tr>
+    <td align="right">
+      Choose file to upload:
+    </td>
+    <td>
+      <INPUT TYPE="FILE" NAME="file">
+    </td>
+  </tr>
+  <tr>
+    <td align="right">
+      Hit this button to upload:
+    </td>
+    <td>
+      <INPUT TYPE="submit" VALUE="Upload file">
+    </td>
+   </tr>
+</table>
+</FORM>
+</BODY>
+</HTML>
