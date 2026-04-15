@@ -1,17 +1,22 @@
-#!/usr/bin/perl -w
-$debug = 0;
-use File::Basename;
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+my $debug = 0;
+use File::Basename qw(basename fileparse_set_fstype);
 # $base_dir is an actual path on your local file system that's accessible to the html server
-$base_dir = "/var/www/html/files";
+my $base_dir = "/var/www/html/files";
 # $base_url is the URL that you would use to access $base_dir from a web browser
-$base_url = "http://server/files";
+my $base_url = "http://server/files";
 use CGI;
 
 my $cgi = new CGI;
 print $cgi->header();
 my $dir = $cgi->param('dir') || 'incoming';
-# SECURITY: Whitelist directory to prevent path traversal
-if ($dir !~ /^[a-zA-Z0-9_\-]+$/) { die "Invalid directory"; }
+# SECURITY: Whitelist directory to prevent path traversal and ensure it exists
+if ($dir !~ /^[a-zA-Z0-9_\-]+$/) { die "Invalid directory format"; }
+if (! -d "$base_dir/$dir") { die "Target directory does not exist"; }
+
 my $file = $cgi->param('file');
 my $upload_fh = $cgi->upload('file');
 my $filename;
@@ -27,14 +32,24 @@ if ($user_agent =~ /Linux/i) {
 }
 $filename = basename($file);
 
+# SECURITY: Filename sanitization - whitelist alphanumeric, dot, underscore, dash
+# and prevent dotfiles or empty filenames.
+if ($filename !~ /^[a-zA-Z0-9_\-]+[a-zA-Z0-9_\-\.]*$/ || $filename =~ /^\./) {
+    die "Invalid filename";
+}
+
 $debug && print "Input filename = $file<p>";
 $debug && print "Parsed filename = $filename<p>";
 $debug && print "Full path = " . $cgi->escapeHTML("$base_dir/$dir/$filename") . "<p>";
 
 # SECURITY: 3-arg open and restricted permissions
 my $upload_path = "$base_dir/$dir/$filename";
+if (!defined $upload_fh) {
+    die "No file uploaded or filehandle is invalid";
+}
 open (my $local_fh, '>', $upload_path) or die "Upload failed: $!";
 binmode $local_fh;
+my $buffer;
 while (read($upload_fh, $buffer, 4096)) {
   print $local_fh $buffer;
 }
