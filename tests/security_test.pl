@@ -1,0 +1,70 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use File::Spec;
+use File::Path qw(make_path remove_tree);
+
+# Set up local test directory
+my $test_base = File::Spec->rel2abs('test_files');
+my $test_incoming = File::Spec->catdir($test_base, 'incoming');
+
+remove_tree($test_base) if -d $test_base;
+make_path($test_incoming) or die "Failed to create test directory: $!";
+
+my @test_cases = (
+    { file => 'valid.txt', dir => 'incoming', expected => 'successfully uploaded', desc => 'Valid upload' },
+    { file => 'script.php', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension' },
+    { file => 'attack.txt', dir => 'secret', expected => 'Invalid or unauthorized directory', desc => 'Path traversal (invalid dir)' },
+    { file => 'attack.txt', dir => '../cgi-bin', expected => 'Invalid or unauthorized directory', desc => 'Path traversal (parent dir)' },
+);
+
+my $failed = 0;
+
+foreach my $tc (@test_cases) {
+    my $filename = $tc->{file};
+    my $dir = $tc->{dir};
+    my $boundary = "----TestBoundary";
+    my $content = "dummy content";
+    my $post_data = "--$boundary\r\n" .
+                    "Content-Disposition: form-data; name=\"dir\"\r\n\r\n" .
+                    "$dir\r\n" .
+                    "--$boundary\r\n" .
+                    "Content-Disposition: form-data; name=\"file\"; filename=\"$filename\"\r\n" .
+                    "Content-Type: text/plain\r\n\r\n" .
+                    "$content\r\n" .
+                    "--$boundary--\r\n";
+
+    my $content_length = length($post_data);
+
+    my $tmp_post = File::Spec->catfile('tests', 'post_data.tmp');
+    open my $fh, '>', $tmp_post or die $!;
+    binmode $fh;
+    print $fh $post_data;
+    close $fh;
+
+    my $cmd = "PERL5LIB=extlib/lib/perl5 UPLOAD_BASE_DIR=$test_base REQUEST_METHOD=POST CONTENT_TYPE='multipart/form-data; boundary=$boundary' CONTENT_LENGTH=$content_length perl cgi-bin/up.cgi < $tmp_post 2>&1";
+    my $output = `$cmd`;
+
+    if ($output =~ /\Q$tc->{expected}\E/i) {
+        print "[PASS] $tc->{desc}: $filename in $dir\n";
+    } else {
+        print "[FAIL] $tc->{desc}: $filename in $dir\n";
+        print "       Expected pattern: $tc->{expected}\n";
+        # Print first few lines of output for debugging
+        my @lines = split /\n/, $output;
+        print "       Got (first 3 lines): " . join("\n", @lines[0..2]) . "\n";
+        $failed++;
+    }
+    unlink $tmp_post;
+}
+
+# Cleanup
+# remove_tree($test_base);
+
+if ($failed == 0) {
+    print "\nAll security tests passed!\n";
+    exit 0;
+} else {
+    print "\n$failed tests failed.\n";
+    exit 1;
+}

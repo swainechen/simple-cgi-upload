@@ -4,8 +4,9 @@ use warnings;
 
 my $debug = 0;
 use File::Basename qw(basename fileparse_set_fstype);
+use File::Spec;
 # $base_dir is an actual path on your local file system that's accessible to the html server
-my $base_dir = "/var/www/html/files";
+my $base_dir = $ENV{UPLOAD_BASE_DIR} || "/var/www/html/files";
 # $base_url is the URL that you would use to access $base_dir from a web browser
 my $base_url = "http://server/files";
 use CGI;
@@ -13,9 +14,10 @@ use CGI;
 my $cgi = new CGI;
 print $cgi->header();
 my $dir = $cgi->param('dir') || 'incoming';
-# SECURITY: Whitelist directory to prevent path traversal and ensure it exists
-if ($dir !~ /^[a-zA-Z0-9_\-]+$/) { die "Invalid directory format"; }
-if (! -d "$base_dir/$dir") { die "Target directory does not exist"; }
+# SECURITY: Strict whitelist for directory to prevent path traversal
+my %allowed_dirs = ( 'incoming' => 1 );
+if (!exists $allowed_dirs{$dir}) { die "Invalid or unauthorized directory"; }
+if (! -d File::Spec->catdir($base_dir, $dir)) { die "Target directory does not exist"; }
 
 my $file = $cgi->param('file');
 my $upload_fh = $cgi->upload('file');
@@ -30,7 +32,7 @@ if ($user_agent =~ /Linux/i) {
 } else {
   fileparse_set_fstype("MSWin32");
 }
-$filename = basename($file);
+$filename = basename($file || '');
 
 # SECURITY: Filename sanitization - whitelist alphanumeric, dot, underscore, dash
 # and prevent dotfiles or empty filenames.
@@ -38,12 +40,17 @@ if ($filename !~ /^[a-zA-Z0-9_\-]+[a-zA-Z0-9_\-\.]*$/ || $filename =~ /^\./) {
     die "Invalid filename";
 }
 
+# SECURITY: Extension blacklist to prevent RCE and Stored XSS
+if ($filename =~ /\.(?:pl|cgi|php|py|sh|exe|html|js|shtml|phtml)$/i) {
+    die "Forbidden file extension";
+}
+
 $debug && print "Input filename = $file<p>";
 $debug && print "Parsed filename = $filename<p>";
 $debug && print "Full path = " . $cgi->escapeHTML("$base_dir/$dir/$filename") . "<p>";
 
 # SECURITY: 3-arg open and restricted permissions
-my $upload_path = "$base_dir/$dir/$filename";
+my $upload_path = File::Spec->catfile($base_dir, $dir, $filename);
 if (!defined $upload_fh) {
     die "No file uploaded or filehandle is invalid";
 }
