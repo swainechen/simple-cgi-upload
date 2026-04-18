@@ -17,3 +17,8 @@
 **Vulnerability:** Denial of Service (DoS) and missing defense-in-depth headers.
 **Learning:** Legacy CGI scripts often lack upload size limits, allowing an attacker to exhaust server resources (memory/disk). Additionally, missing modern security headers like `X-Frame-Options` and `CSP` leaves the application vulnerable to clickjacking and XSS.
 **Prevention:** Set `$CGI::POST_MAX` to a reasonable limit and handle `cgi_error()` to return a `413 Request Entity Too Large` status. Always include modern security headers (`X-Frame-Options`, `X-Content-Type-Options`, `Content-Security-Policy`) in the CGI response.
+
+## 2025-01-24 - [Stored XSS via SVG Uploads]
+**Vulnerability:** Stored Cross-Site Scripting (XSS) through uploaded SVG files.
+**Learning:** SVG files are XML-based and can contain embedded <script> tags. When served directly from a server, the browser may execute these scripts in the context of the domain, leading to XSS.
+**Prevention:** Include '.svg' in the forbidden file extensions blacklist if SVG support is not strictly required, or implement rigorous SVG sanitization if they must be allowed.
