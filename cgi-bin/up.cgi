@@ -11,8 +11,27 @@ my $base_dir = $ENV{UPLOAD_BASE_DIR} || "/var/www/html/files";
 my $base_url = "http://server/files";
 use CGI;
 
+# SECURITY: Limit upload size to 100MB to prevent DoS
+$CGI::POST_MAX = $ENV{CGI_POST_MAX_TEST} || (1024 * 1024 * 100);
+
 my $cgi = new CGI;
-print $cgi->header();
+
+# SECURITY: Handle upload errors (like exceeding POST_MAX)
+if (my $error = $cgi->cgi_error) {
+    print $cgi->header(-status => $error);
+    print "<html><body><h1>$error</h1><p>The uploaded file is too large or another error occurred.</p></body></html>";
+    exit;
+}
+
+# SECURITY: Modern security headers
+print $cgi->header(
+    -type                   => 'text/html',
+    -charset                => 'utf-8',
+    -X_Frame_Options        => 'DENY',
+    -X_Content_Type_Options => 'nosniff',
+    -Content_Security_Policy => "default-src 'self'; style-src 'unsafe-inline'; font-src 'self';"
+);
+
 my $dir = $cgi->param('dir') || 'incoming';
 # SECURITY: Strict whitelist for directory to prevent path traversal
 my %allowed_dirs = ( 'incoming' => 1 );

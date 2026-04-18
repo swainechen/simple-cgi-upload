@@ -16,6 +16,10 @@ my @test_cases = (
     { file => 'script.php', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension' },
     { file => 'attack.txt', dir => 'secret', expected => 'Invalid or unauthorized directory', desc => 'Path traversal (invalid dir)' },
     { file => 'attack.txt', dir => '../cgi-bin', expected => 'Invalid or unauthorized directory', desc => 'Path traversal (parent dir)' },
+    { file => 'valid.txt', dir => 'incoming', expected => 'X-Frame-Options: DENY', desc => 'Security Header: X-Frame-Options' },
+    { file => 'valid.txt', dir => 'incoming', expected => 'X-Content-Type-Options: nosniff', desc => 'Security Header: X-Content-Type-Options' },
+    { file => 'valid.txt', dir => 'incoming', expected => 'Content-Security-Policy: default-src', desc => 'Security Header: Content-Security-Policy' },
+    { file => 'too_large.txt', dir => 'incoming', expected => '413 Request Entity Too Large', desc => 'File size limit (POST_MAX)', env => { CGI_POST_MAX_TEST => 10 } },
 );
 
 my $failed = 0;
@@ -42,7 +46,13 @@ foreach my $tc (@test_cases) {
     print $fh $post_data;
     close $fh;
 
-    my $cmd = "PERL5LIB=extlib/lib/perl5 UPLOAD_BASE_DIR=$test_base REQUEST_METHOD=POST CONTENT_TYPE='multipart/form-data; boundary=$boundary' CONTENT_LENGTH=$content_length perl cgi-bin/up.cgi < $tmp_post 2>&1";
+    my $env_vars = "PERL5LIB=extlib/lib/perl5 UPLOAD_BASE_DIR=$test_base REQUEST_METHOD=POST CONTENT_TYPE='multipart/form-data; boundary=$boundary' CONTENT_LENGTH=$content_length";
+    if ($tc->{env}) {
+        while (my ($k, $v) = each %{$tc->{env}}) {
+            $env_vars .= " $k=$v";
+        }
+    }
+    my $cmd = "$env_vars perl cgi-bin/up.cgi < $tmp_post 2>&1";
     my $output = `$cmd`;
 
     if ($output =~ /\Q$tc->{expected}\E/i) {
