@@ -60,7 +60,7 @@ if ($filename !~ /^[a-zA-Z0-9_\-]+[a-zA-Z0-9_\-\.]*$/ || $filename =~ /^\./) {
 }
 
 # SECURITY: Extension blacklist to prevent RCE and Stored XSS
-if ($filename =~ /\.(?:pl|cgi|php|py|sh|exe|html|js|shtml|phtml)$/i) {
+if ($filename =~ /\.(?:pl|cgi|php|py|sh|exe|html|js|shtml|phtml|svg)$/i) {
     die "Forbidden file extension";
 }
 

@@ -20,6 +20,7 @@ my @test_cases = (
     { file => 'valid.txt', dir => 'incoming', expected => 'X-Content-Type-Options: nosniff', desc => 'Security Header: X-Content-Type-Options' },
     { file => 'valid.txt', dir => 'incoming', expected => 'Content-Security-Policy: default-src', desc => 'Security Header: Content-Security-Policy' },
     { file => 'too_large.txt', dir => 'incoming', expected => '413 Request Entity Too Large', desc => 'File size limit (POST_MAX)', env => { CGI_POST_MAX_TEST => 10 } },
+    { file => 'test.svg', dir => 'incoming', expected => 'Forbidden file extension', desc => 'SVG upload (XSS risk)' },
 );
 
 my $failed = 0;
