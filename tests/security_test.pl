@@ -21,6 +21,11 @@ my @test_cases = (
     { file => 'valid.txt', dir => 'incoming', expected => 'Content-Security-Policy: default-src', desc => 'Security Header: Content-Security-Policy' },
     { file => 'too_large.txt', dir => 'incoming', expected => '413 Request Entity Too Large', desc => 'File size limit (POST_MAX)', env => { CGI_POST_MAX_TEST => 10 } },
     { file => 'test.svg', dir => 'incoming', expected => 'Forbidden file extension', desc => 'SVG upload (XSS risk)' },
+    { file => 'test.php.txt', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Double extension bypass (.php.txt)' },
+    { file => '-attack.txt', dir => 'incoming', expected => 'Invalid filename', desc => 'Leading dash injection' },
+    { file => '.env', dir => 'incoming', expected => 'Invalid filename', desc => 'Hidden file upload (.env)' },
+    { file => 'test.asp', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.asp)' },
+    { file => 'test.htm', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.htm)' },
 );
 
 my $failed = 0;

@@ -29,7 +29,7 @@ print $cgi->header(
     -charset                => 'utf-8',
     -X_Frame_Options        => 'DENY',
     -X_Content_Type_Options => 'nosniff',
-    -Content_Security_Policy => "default-src 'self'; style-src 'unsafe-inline'; font-src 'self';"
+    -Content_Security_Policy => "default-src 'self'; style-src 'unsafe-inline'; font-src 'self'; object-src 'none';"
 );
 
 my $dir = $cgi->param('dir') || 'incoming';
@@ -53,14 +53,15 @@ if ($user_agent =~ /Linux/i) {
 }
 $filename = basename($file || '');
 
-# SECURITY: Filename sanitization - whitelist alphanumeric, dot, underscore, dash
-# and prevent dotfiles or empty filenames.
-if ($filename !~ /^[a-zA-Z0-9_\-]+[a-zA-Z0-9_\-\.]*$/ || $filename =~ /^\./) {
+# SECURITY: Filename sanitization - whitelist alphanumeric, dot, underscore, dash.
+# Disallow filenames starting with a dot or dash to prevent hidden files and option injection.
+if ($filename !~ /^[a-zA-Z0-9_][a-zA-Z0-9_\-\.]*$/) {
     die "Invalid filename";
 }
 
-# SECURITY: Extension blacklist to prevent RCE and Stored XSS
-if ($filename =~ /\.(?:pl|cgi|php|py|sh|exe|html|js|shtml|phtml|svg)$/i) {
+# SECURITY: Extension blacklist to prevent RCE and Stored XSS.
+# Checks for forbidden extensions anywhere in the filename (e.g., .php.txt).
+if ($filename =~ /\.(?:pl|cgi|php|phar|py|sh|exe|bat|cmd|html|htm|js|shtml|phtml|svg|asp|aspx|jsp|jspx)(?:\.|\z)/i) {
     die "Forbidden file extension";
 }
 
@@ -73,7 +74,8 @@ my $upload_path = File::Spec->catfile($base_dir, $dir, $filename);
 if (!defined $upload_fh) {
     die "No file uploaded or filehandle is invalid";
 }
-open (my $local_fh, '>', $upload_path) or die "Upload failed: $!";
+# SECURITY: Generic error message to prevent path leakage
+open (my $local_fh, '>', $upload_path) or die "Upload failed: Internal server error";
 binmode $local_fh;
 my $buffer;
 while (read($upload_fh, $buffer, 4096)) {

@@ -22,3 +22,8 @@
 **Vulnerability:** Stored Cross-Site Scripting (XSS) through uploaded SVG files.
 **Learning:** SVG files are XML-based and can contain embedded <script> tags. When served directly from a server, the browser may execute these scripts in the context of the domain, leading to XSS.
 **Prevention:** Include '.svg' in the forbidden file extensions blacklist if SVG support is not strictly required, or implement rigorous SVG sanitization if they must be allowed.
+
+## 2025-01-24 - [Option Injection and Double Extension Bypass]
+**Vulnerability:** Command-line option injection via filenames and RCE via double extension bypass.
+**Learning:** Filenames starting with a dash (`-`) can be interpreted as flags by system utilities (like `rm` in a cleanup cron job). Furthermore, simple suffix-based extension blacklists can be bypassed on many server configurations using double extensions (e.g., `file.php.txt`).
+**Prevention:** Sanitize filenames to disallow leading dashes and dots. Use a robust extension blacklist regex that checks for forbidden extensions followed by either a dot or the end of the string (e.g., `\.(?:php|pl)(?:\.|\z)`).
