@@ -26,6 +26,10 @@ my @test_cases = (
     { file => '.env', dir => 'incoming', expected => 'Invalid filename', desc => 'Hidden file upload (.env)' },
     { file => 'test.asp', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.asp)' },
     { file => 'test.htm', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.htm)' },
+    { file => 'test.php5', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.php5)' },
+    { file => 'test.pht', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.pht)' },
+    { file => 'test.phps', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.phps)' },
+    { file => 'test.aspx', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.aspx)' },
 );
 
 my $failed = 0;
