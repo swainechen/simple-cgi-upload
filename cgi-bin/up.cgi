@@ -25,11 +25,14 @@ if (my $error = $cgi->cgi_error) {
 
 # SECURITY: Modern security headers
 print $cgi->header(
-    -type                   => 'text/html',
-    -charset                => 'utf-8',
-    -X_Frame_Options        => 'DENY',
-    -X_Content_Type_Options => 'nosniff',
-    -Content_Security_Policy => "default-src 'self'; style-src 'unsafe-inline'; font-src 'self'; object-src 'none';"
+    -type                        => 'text/html',
+    -charset                     => 'utf-8',
+    -X_Frame_Options             => 'DENY',
+    -X_Content_Type_Options      => 'nosniff',
+    -Content_Security_Policy     => "default-src 'self'; script-src 'none'; style-src 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none';",
+    -Strict_Transport_Security   => 'max-age=31536000; includeSubDomains',
+    -Referrer_Policy             => 'no-referrer',
+    -X_Permitted_Cross_Domain_Policies => 'none',
 );
 
 my $dir = $cgi->param('dir') || 'incoming';
@@ -61,7 +64,7 @@ if ($filename !~ /^[a-zA-Z0-9_][a-zA-Z0-9_\-\.]*$/) {
 
 # SECURITY: Extension blacklist to prevent RCE and Stored XSS.
 # Checks for forbidden extensions anywhere in the filename (e.g., .php.txt).
-if ($filename =~ /\.(?:pl|cgi|php|phar|py|sh|exe|bat|cmd|html|htm|js|shtml|phtml|svg|asp|aspx|jsp|jspx)(?:\.|\z)/i) {
+if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|sh|exe|bat|cmd|html?|js|shtml|phtml|svg|asp[x]?|jspx?)(?:\.|\z)/i) {
     die "Forbidden file extension";
 }
 
@@ -85,8 +88,8 @@ close $local_fh;
 chmod 0644, $upload_path;
 my $filesize = (stat($upload_path))[7] || 0;
 my $url = "$base_url/$dir/" . CGI::escape($filename);
-# SECURITY: Escape reflected output to prevent XSS
-my $esc_file = $cgi->escapeHTML($file);
+# SECURITY: Escape reflected output to prevent XSS. Ensure $file is defined.
+my $esc_file = $cgi->escapeHTML($file || '');
 my $esc_url = $cgi->escapeHTML($url);
 print "<p><b>$esc_file ($filesize bytes)</b> has been successfully uploaded...\n";
 print "<p>The publicly accessible link to this file is:<br>\n";
