@@ -27,3 +27,8 @@
 **Vulnerability:** Command-line option injection via filenames and RCE via double extension bypass.
 **Learning:** Filenames starting with a dash (`-`) can be interpreted as flags by system utilities (like `rm` in a cleanup cron job). Furthermore, simple suffix-based extension blacklists can be bypassed on many server configurations using double extensions (e.g., `file.php.txt`).
 **Prevention:** Sanitize filenames to disallow leading dashes and dots. Use a robust extension blacklist regex that checks for forbidden extensions followed by either a dot or the end of the string (e.g., `\.(?:php|pl)(?:\.|\z)`).
+
+## 2025-01-24 - [CGI Error Handling and Information Leakage]
+**Vulnerability:** Information leakage via Perl's `die` and XSS in error responses.
+**Learning:** In Perl CGI, `die` appends the script path and line number unless the string ends with a newline. If headers are already sent, this info is leaked to the browser. Also, `cgi_error()` messages from `CGI.pm` can be reflected in the response, creating an XSS vector if not escaped.
+**Prevention:** Always append `\n` to `die` messages in CGI scripts. Always escape `cgi_error()` output with `$cgi->escapeHTML()`. Prefer reflected output based on sanitized internal state (e.g., the final `$filename`) rather than raw request parameters.
