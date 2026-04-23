@@ -5,6 +5,7 @@ use warnings;
 my $debug = 0;
 use File::Basename qw(basename fileparse_set_fstype);
 use File::Spec;
+use Fcntl qw(:DEFAULT O_NOFOLLOW);
 # $base_dir is an actual path on your local file system that's accessible to the html server
 my $base_dir = $ENV{UPLOAD_BASE_DIR} || "/var/www/html/files";
 # $base_url is the URL that you would use to access $base_dir from a web browser
@@ -80,8 +81,11 @@ my $upload_path = File::Spec->catfile($base_dir, $dir, $filename);
 if (!defined $upload_fh) {
     die "No file uploaded or filehandle is invalid\n";
 }
-# SECURITY: Generic error message to prevent path leakage
-open (my $local_fh, '>', $upload_path) or die "Upload failed: Internal server error\n";
+# SECURITY: Use sysopen with O_NOFOLLOW to prevent symlink attacks.
+# We use O_TRUNC to allow overwriting existing files, as O_EXCL would prevent updates.
+# Explicitly set file permissions to 0644.
+sysopen(my $local_fh, $upload_path, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0644)
+    or die "Upload failed: Internal server error\n";
 binmode $local_fh;
 my $buffer;
 while (read($upload_fh, $buffer, 4096)) {
