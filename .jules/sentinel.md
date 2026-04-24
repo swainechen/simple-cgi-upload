@@ -37,3 +37,7 @@
 **Vulnerability:** Symlink attack and race conditions in file upload.
 **Learning:** Standard Perl `open` with `>` is vulnerable to symlink following and race conditions. Using `sysopen` with `O_NOFOLLOW` prevents following symlinks. To maintain overwrite functionality without `O_EXCL`, `O_TRUNC` can be used. Furthermore, `O_NOFOLLOW` is not always in the default `Fcntl` export and should be imported explicitly.
 **Prevention:** Use `sysopen` with `O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW` and explicit mode (e.g., `0644`) for secure file creation that allows overwriting. Always explicitly import `O_NOFOLLOW` from `Fcntl`.
+## 2025-01-24 - [Symlink Attacks and Accidental Overwrites]
+**Vulnerability:** Symlink attack allowing overwriting sensitive files and accidental file overwrite.
+**Learning:** Standard 3-argument `open` with `>` will follow symlinks and overwrite existing files. This can be exploited if an attacker can pre-create a symlink in the upload directory pointing to a sensitive file.
+**Prevention:** Use `sysopen` with `O_CREAT | O_EXCL` to ensure the file is created only if it doesn't exist. Use `O_NOFOLLOW` (where supported) to explicitly prevent following symlinks.

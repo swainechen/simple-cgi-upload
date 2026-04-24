@@ -81,11 +81,11 @@ my $upload_path = File::Spec->catfile($base_dir, $dir, $filename);
 if (!defined $upload_fh) {
     die "No file uploaded or filehandle is invalid\n";
 }
-# SECURITY: Use sysopen with O_NOFOLLOW to prevent symlink attacks.
-# We use O_TRUNC to allow overwriting existing files, as O_EXCL would prevent updates.
-# Explicitly set file permissions to 0644.
-sysopen(my $local_fh, $upload_path, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0644)
-    or die "Upload failed: Internal server error\n";
+# SECURITY: Use sysopen with O_CREAT | O_EXCL to prevent symlink attacks and accidental overwrites.
+# O_NOFOLLOW is added for extra protection where supported.
+my $flags = O_WRONLY | O_CREAT | O_EXCL;
+$flags |= O_NOFOLLOW if defined &O_NOFOLLOW;
+sysopen (my $local_fh, $upload_path, $flags, 0644) or die "Upload failed: Internal server error\n";
 binmode $local_fh;
 my $buffer;
 while (read($upload_fh, $buffer, 4096)) {
