@@ -33,6 +33,10 @@
 **Learning:** In Perl CGI, `die` appends the script path and line number unless the string ends with a newline. If headers are already sent, this info is leaked to the browser. Also, `cgi_error()` messages from `CGI.pm` can be reflected in the response, creating an XSS vector if not escaped.
 **Prevention:** Always append `\n` to `die` messages in CGI scripts. Always escape `cgi_error()` output with `$cgi->escapeHTML()`. Prefer reflected output based on sanitized internal state (e.g., the final `$filename`) rather than raw request parameters.
 
+## 2026-04-23 - [Secure File Creation and Symlink Protection]
+**Vulnerability:** Symlink attack and race conditions in file upload.
+**Learning:** Standard Perl `open` with `>` is vulnerable to symlink following and race conditions. Using `sysopen` with `O_NOFOLLOW` prevents following symlinks. To maintain overwrite functionality without `O_EXCL`, `O_TRUNC` can be used. Furthermore, `O_NOFOLLOW` is not always in the default `Fcntl` export and should be imported explicitly.
+**Prevention:** Use `sysopen` with `O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW` and explicit mode (e.g., `0644`) for secure file creation that allows overwriting. Always explicitly import `O_NOFOLLOW` from `Fcntl`.
 ## 2025-01-24 - [Symlink Attacks and Accidental Overwrites]
 **Vulnerability:** Symlink attack allowing overwriting sensitive files and accidental file overwrite.
 **Learning:** Standard 3-argument `open` with `>` will follow symlinks and overwrite existing files. This can be exploited if an attacker can pre-create a symlink in the upload directory pointing to a sensitive file.

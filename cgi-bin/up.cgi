@@ -5,7 +5,7 @@ use warnings;
 my $debug = 0;
 use File::Basename qw(basename fileparse_set_fstype);
 use File::Spec;
-use Fcntl;
+use Fcntl qw(:DEFAULT O_NOFOLLOW);
 # $base_dir is an actual path on your local file system that's accessible to the html server
 my $base_dir = $ENV{UPLOAD_BASE_DIR} || "/var/www/html/files";
 # $base_url is the URL that you would use to access $base_dir from a web browser
