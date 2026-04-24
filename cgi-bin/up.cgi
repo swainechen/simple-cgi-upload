@@ -17,18 +17,8 @@ $CGI::POST_MAX = $ENV{CGI_POST_MAX_TEST} || (1024 * 1024 * 100);
 
 my $cgi = new CGI;
 
-# SECURITY: Handle upload errors (like exceeding POST_MAX)
-if (my $error = $cgi->cgi_error) {
-    my $esc_error = $cgi->escapeHTML($error);
-    print $cgi->header(-status => $error);
-    print "<html><body><h1>$esc_error</h1><p>The uploaded file is too large or another error occurred.</p></body></html>";
-    exit;
-}
-
 # SECURITY: Modern security headers
-print $cgi->header(
-    -type                        => 'text/html',
-    -charset                     => 'utf-8',
+my %security_headers = (
     -X_Frame_Options             => 'DENY',
     -X_Content_Type_Options      => 'nosniff',
     -Content_Security_Policy     => "default-src 'self'; script-src 'none'; style-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none';",
@@ -38,11 +28,27 @@ print $cgi->header(
     -Permissions_Policy          => 'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
 );
 
+sub send_error {
+    my ($status, $message) = @_;
+    print $cgi->header(-status => $status, -type => 'text/html', -charset => 'utf-8', %security_headers);
+    print "<html><body><h1>Error: " . $cgi->escapeHTML($status) . "</h1><p>" . $cgi->escapeHTML($message) . "</p></body></html>";
+    exit;
+}
+
+# SECURITY: Handle upload errors (like exceeding POST_MAX)
+if (my $error = $cgi->cgi_error) {
+    send_error($error, "The uploaded file is too large or another error occurred.");
+}
+
 my $dir = $cgi->param('dir') || 'incoming';
 # SECURITY: Strict whitelist for directory to prevent path traversal
 my %allowed_dirs = ( 'incoming' => 1 );
-if (!exists $allowed_dirs{$dir}) { die "Invalid or unauthorized directory\n"; }
-if (! -d File::Spec->catdir($base_dir, $dir)) { die "Target directory does not exist\n"; }
+if (!exists $allowed_dirs{$dir}) {
+    send_error("403 Forbidden", "Invalid or unauthorized directory");
+}
+if (! -d File::Spec->catdir($base_dir, $dir)) {
+    send_error("500 Internal Server Error", "Target directory does not exist");
+}
 
 my $file = $cgi->param('file');
 my $upload_fh = $cgi->upload('file');
@@ -63,13 +69,13 @@ $filename = basename($file || '');
 # Disallow filenames starting with a dot or dash to prevent hidden files and option injection.
 # Limit filename length to 255 characters.
 if ($filename !~ /^[a-zA-Z0-9_][a-zA-Z0-9_\-\.]{0,254}$/) {
-    die "Invalid filename\n";
+    send_error("400 Bad Request", "Invalid filename");
 }
 
 # SECURITY: Extension blacklist to prevent RCE and Stored XSS.
 # Checks for forbidden extensions anywhere in the filename (e.g., .php.txt).
-if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|sh|exe|bat|cmd|html?|js|shtml|phtml|svg|asp[x]?|jspx?)(?:\.|\z)/i) {
-    die "Forbidden file extension\n";
+if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|sh|exe|bat|cmd|html?|js|shtml|phtml|svg|asp[x]?|jspx?|xhtml)(?:\.|\z)/i) {
+    send_error("403 Forbidden", "Forbidden file extension");
 }
 
 $debug && print "Input filename = $file<p>";
@@ -79,13 +85,12 @@ $debug && print "Full path = " . $cgi->escapeHTML("$base_dir/$dir/$filename") . 
 # SECURITY: 3-arg open and restricted permissions
 my $upload_path = File::Spec->catfile($base_dir, $dir, $filename);
 if (!defined $upload_fh) {
-    die "No file uploaded or filehandle is invalid\n";
+    send_error("400 Bad Request", "No file uploaded or filehandle is invalid");
 }
-# SECURITY: Use sysopen with O_CREAT | O_EXCL to prevent symlink attacks and accidental overwrites.
-# O_NOFOLLOW is added for extra protection where supported.
-my $flags = O_WRONLY | O_CREAT | O_EXCL;
+# SECURITY: Use sysopen with O_CREAT | O_TRUNC | O_NOFOLLOW to prevent symlink attacks while allowing secure overwrites.
+my $flags = O_WRONLY | O_CREAT | O_TRUNC;
 $flags |= O_NOFOLLOW if defined &O_NOFOLLOW;
-sysopen (my $local_fh, $upload_path, $flags, 0644) or die "Upload failed: Internal server error\n";
+sysopen (my $local_fh, $upload_path, $flags, 0644) or send_error("500 Internal Server Error", "Upload failed: Internal server error");
 binmode $local_fh;
 my $buffer;
 while (read($upload_fh, $buffer, 4096)) {
@@ -98,6 +103,7 @@ my $url = "$base_url/$dir/" . CGI::escape($filename);
 # SECURITY: Escape reflected output to prevent XSS. Use the sanitized filename.
 my $esc_filename = $cgi->escapeHTML($filename);
 my $esc_url = $cgi->escapeHTML($url);
+print $cgi->header(-type => 'text/html', -charset => 'utf-8', %security_headers);
 print "<p><b>$esc_filename ($filesize bytes)</b> has been successfully uploaded...\n";
 print "<p>The publicly accessible link to this file is:<br>\n";
 print "<a href=\"$esc_url\">$esc_url</a><p>\n";
