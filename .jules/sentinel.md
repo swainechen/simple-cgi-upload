@@ -32,3 +32,8 @@
 **Vulnerability:** Information leakage via Perl's `die` and XSS in error responses.
 **Learning:** In Perl CGI, `die` appends the script path and line number unless the string ends with a newline. If headers are already sent, this info is leaked to the browser. Also, `cgi_error()` messages from `CGI.pm` can be reflected in the response, creating an XSS vector if not escaped.
 **Prevention:** Always append `\n` to `die` messages in CGI scripts. Always escape `cgi_error()` output with `$cgi->escapeHTML()`. Prefer reflected output based on sanitized internal state (e.g., the final `$filename`) rather than raw request parameters.
+
+## 2025-01-24 - [Symlink Attacks and Accidental Overwrites]
+**Vulnerability:** Symlink attack allowing overwriting sensitive files and accidental file overwrite.
+**Learning:** Standard 3-argument `open` with `>` will follow symlinks and overwrite existing files. This can be exploited if an attacker can pre-create a symlink in the upload directory pointing to a sensitive file.
+**Prevention:** Use `sysopen` with `O_CREAT | O_EXCL` to ensure the file is created only if it doesn't exist. Use `O_NOFOLLOW` (where supported) to explicitly prevent following symlinks.
