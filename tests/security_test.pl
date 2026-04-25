@@ -30,6 +30,10 @@ my @test_cases = (
     { file => 'test.pht', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.pht)' },
     { file => 'test.phps', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.phps)' },
     { file => 'test.aspx', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.aspx)' },
+    { file => 'test.xhtml', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.xhtml)' },
+    { file => 'valid.txt', dir => 'incoming', expected => 'successfully uploaded', desc => 'Success Status: 200 OK (implicit)' },
+    { file => 'script.php', dir => 'incoming', expected => 'Status: 403 Forbidden', desc => 'Error Status: 403 Forbidden' },
+    { file => 'a' x 256 . '.txt', dir => 'incoming', expected => 'Status: 400 Bad Request', desc => 'Error Status: 400 Bad Request' },
     { file => 'a' x 256 . '.txt', dir => 'incoming', expected => 'Invalid filename', desc => 'Filename too long (256 chars)' },
 );
 
