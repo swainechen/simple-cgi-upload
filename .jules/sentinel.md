@@ -41,3 +41,8 @@
 **Vulnerability:** Symlink attack allowing overwriting sensitive files and accidental file overwrite.
 **Learning:** Standard 3-argument `open` with `>` will follow symlinks and overwrite existing files. This can be exploited if an attacker can pre-create a symlink in the upload directory pointing to a sensitive file.
 **Prevention:** Use `sysopen` with `O_CREAT | O_EXCL` to ensure the file is created only if it doesn't exist. Use `O_NOFOLLOW` (where supported) to explicitly prevent following symlinks.
+
+## 2026-04-24 - [Centralized Error Handling and Security Headers]
+**Vulnerability:** Inconsistent security headers and improper HTTP status codes in error responses.
+**Learning:** Legacy CGI scripts often print error messages directly before headers are sent or omit security headers in error paths. Furthermore, returning `200 OK` for validation failures (like invalid filenames) is poor practice and can interfere with automated security scanning.
+**Prevention:** Implement a centralized `send_error` function that emits proper HTTP status codes (400, 403, 500) and includes a full set of modern security headers (CSP, HSTS, X-Frame-Options) for every response, ensuring consistent protection across all code paths.
