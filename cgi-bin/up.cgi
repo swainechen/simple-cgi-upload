@@ -19,6 +19,7 @@ my %sec_headers = (
     -Referrer_Policy             => 'no-referrer',
     -X_Permitted_Cross_Domain_Policies => 'none',
     -Permissions_Policy          => 'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
+    -X_Download_Options          => 'noopen',
 );
 
 # $base_dir is an actual path on your local file system that's accessible to the html server
@@ -37,7 +38,19 @@ sub send_error {
     print $cgi->header(%sec_headers, -status => $status);
     my $esc_message = $cgi->escapeHTML($message);
     my $esc_status = $cgi->escapeHTML($status);
-    print "<html><body><h1>Error: $esc_status</h1><p>$esc_message</p></body></html>";
+    print <<EOF;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Error: $esc_status</title>
+</head>
+<body>
+    <h1>Error: $esc_status</h1>
+    <p>$esc_message</p>
+</body>
+</html>
+EOF
     exit;
 }
 
@@ -80,7 +93,7 @@ if ($filename !~ /^[a-zA-Z0-9_][a-zA-Z0-9_\-\.]{0,254}$/) {
 
 # SECURITY: Extension blacklist to prevent RCE and Stored XSS.
 # Checks for forbidden extensions anywhere in the filename (e.g., .php.txt).
-if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|sh|exe|bat|cmd|html?|js|shtml|phtml|svg|asp[x]?|jspx?|vbs|ps1|wasm|xhtml|conf|config)(?:\.|\z)/i) {
+if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|sh|exe|bat|cmd|html?|js|shtml|phtml|svg|asp[x]?|jspx?|vbs|ps1|wasm|xhtml|conf|config|jar|swf|hta|scr|com|msi|vbe|jse|wsf|lnk|reg|jnlp|docm|dotm|xlsm|xltm|pptm|potm|ppsm)(?:\.|\z)/i) {
     send_error("403 Forbidden", "Forbidden file extension");
 }
 
@@ -97,8 +110,13 @@ $flags |= O_NOFOLLOW if defined &O_NOFOLLOW;
 sysopen (my $local_fh, $upload_path, $flags, 0644) or send_error("500 Internal Server Error", "Upload failed: Internal server error");
 binmode $local_fh;
 my $buffer;
-while (read($upload_fh, $buffer, 4096)) {
+my $bytes_read;
+while ($bytes_read = read($upload_fh, $buffer, 4096)) {
     print $local_fh $buffer or send_error("500 Internal Server Error", "Write failed");
+}
+# Check if read finished because of EOF or error
+if (!defined $bytes_read && $!) {
+    send_error("500 Internal Server Error", "Read failed: Internal server error");
 }
 close $local_fh or send_error("500 Internal Server Error", "Failed to finalize upload");
 
@@ -109,9 +127,20 @@ my $url = "$base_url/$dir/" . CGI::escape($filename);
 # SECURITY: Escape reflected output to prevent XSS. Use the sanitized filename.
 my $esc_filename = $cgi->escapeHTML($filename);
 my $esc_url = $cgi->escapeHTML($url);
+my $esc_upload_url = $cgi->escapeHTML("$base_url/upload.html");
 print $cgi->header(%sec_headers);
-print "<p><b>$esc_filename ($filesize bytes)</b> has been successfully uploaded...\n";
-print "<p>The publicly accessible link to this file is:<br>\n";
-print "<a href=\"$esc_url\">$esc_url</a><p>\n";
-print "Go back to <a href=\"" . $cgi->escapeHTML("$base_url/upload.html") . "\">upload another file</a>\n";
-print "</body></html>";
+print <<EOF;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Upload Successful</title>
+</head>
+<body>
+<p><b>$esc_filename ($filesize bytes)</b> has been successfully uploaded...</p>
+<p>The publicly accessible link to this file is:<br>
+<a href="$esc_url">$esc_url</a></p>
+<p>Go back to <a href="$esc_upload_url">upload another file</a></p>
+</body>
+</html>
+EOF
