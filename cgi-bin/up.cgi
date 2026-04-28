@@ -14,11 +14,11 @@ my %sec_headers = (
     -charset                     => 'utf-8',
     -X_Frame_Options             => 'DENY',
     -X_Content_Type_Options      => 'nosniff',
-    -Content_Security_Policy     => "default-src 'self'; script-src 'none'; style-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none';",
+    -Content_Security_Policy     => "upgrade-insecure-requests; default-src 'self'; script-src 'none'; style-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none';",
     -Strict_Transport_Security   => 'max-age=31536000; includeSubDomains',
     -Referrer_Policy             => 'no-referrer',
     -X_Permitted_Cross_Domain_Policies => 'none',
-    -Permissions_Policy          => 'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
+    -Permissions_Policy          => 'accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), usb=(), web-share=()',
     -X_Download_Options          => 'noopen',
 );
 
@@ -93,7 +93,7 @@ if ($filename !~ /^[a-zA-Z0-9_][a-zA-Z0-9_\-\.]{0,254}$/) {
 
 # SECURITY: Extension blacklist to prevent RCE and Stored XSS.
 # Checks for forbidden extensions anywhere in the filename (e.g., .php.txt).
-if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|sh|exe|bat|cmd|html?|js|shtml|phtml|svg|asp[x]?|jspx?|vbs|ps1|wasm|xhtml|conf|config|jar|swf|hta|scr|com|msi|vbe|jse|wsf|lnk|reg|jnlp|docm|dotm|xlsm|xltm|pptm|potm|ppsm)(?:\.|\z)/i) {
+if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|sh|bash|zsh|exe|bat|cmd|html?|js|mjs|shtml|phtml|svg|svgz|asp[x]?|jspx?|vbs|ps1|wasm|xhtml|conf|config|jar|war|ear|swf|hta|scr|com|msi|vbe|jse|wsf|wsh|lnk|reg|jnlp|pif|desktop|url|application|gadget|msu|msp|docm|dotm|xlsm|xltm|pptm|potm|ppsm)(?:\.|\z)/i) {
     send_error("403 Forbidden", "Forbidden file extension");
 }
 
@@ -119,6 +119,11 @@ if (!defined $bytes_read && $!) {
     send_error("500 Internal Server Error", "Read failed: Internal server error");
 }
 close $local_fh or send_error("500 Internal Server Error", "Failed to finalize upload");
+
+# SECURITY: Audit log the upload event
+my $remote_ip = $cgi->remote_host() || 'unknown';
+$remote_ip =~ s/[^\w\.\-:]//g; # Basic sanitization for logging
+warn "[AUDIT] File uploaded: filename=$filename, dir=$dir, size=" . (-s $upload_path) . ", ip=$remote_ip\n";
 
 my $filesize = (stat($upload_path))[7] || 0;
 my $url = "$base_url/$dir/" . CGI::escape($filename);

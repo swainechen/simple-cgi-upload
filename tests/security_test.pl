@@ -18,7 +18,7 @@ my @test_cases = (
     { file => 'attack.txt', dir => '../cgi-bin', expected => 'Invalid or unauthorized directory', desc => 'Path traversal (parent dir)' },
     { file => 'valid.txt', dir => 'incoming', expected => 'X-Frame-Options: DENY', desc => 'Security Header: X-Frame-Options' },
     { file => 'valid.txt', dir => 'incoming', expected => 'X-Content-Type-Options: nosniff', desc => 'Security Header: X-Content-Type-Options' },
-    { file => 'valid.txt', dir => 'incoming', expected => 'Content-Security-Policy: default-src', desc => 'Security Header: Content-Security-Policy' },
+    { file => 'valid.txt', dir => 'incoming', expected => 'Content-Security-Policy: upgrade-insecure-requests', desc => 'Security Header: Content-Security-Policy' },
     { file => 'too_large.txt', dir => 'incoming', expected => '413 Request Entity Too Large', desc => 'File size limit (POST_MAX)', env => { CGI_POST_MAX_TEST => 10 } },
     { file => 'test.svg', dir => 'incoming', expected => 'Forbidden file extension', desc => 'SVG upload (XSS risk)' },
     { file => 'test.php.txt', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Double extension bypass (.php.txt)' },
@@ -36,6 +36,9 @@ my @test_cases = (
     { file => 'a' x 256 . '.txt', dir => 'incoming', expected => 'Status: 400 Bad Request', desc => 'Error Status: 400 Bad Request' },
     { file => 'a' x 256 . '.txt', dir => 'incoming', expected => 'Invalid filename', desc => 'Filename too long (256 chars)' },
     { file => 'malicious.jar', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.jar)' },
+    { file => 'attack.desktop', dir => 'incoming', expected => 'Forbidden file extension', desc => 'New blacklisted extension (.desktop)' },
+    { file => 'script.bash', dir => 'incoming', expected => 'Forbidden file extension', desc => 'New blacklisted extension (.bash)' },
+    { file => 'valid.txt', dir => 'incoming', expected => 'upgrade-insecure-requests', desc => 'Security Header: CSP upgrade-insecure-requests' },
 );
 
 my $failed = 0;
