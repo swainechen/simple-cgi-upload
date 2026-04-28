@@ -35,6 +35,7 @@ my @test_cases = (
     { file => 'script.php', dir => 'incoming', expected => 'Status: 403 Forbidden', desc => 'Error Status: 403 Forbidden' },
     { file => 'a' x 256 . '.txt', dir => 'incoming', expected => 'Status: 400 Bad Request', desc => 'Error Status: 400 Bad Request' },
     { file => 'a' x 256 . '.txt', dir => 'incoming', expected => 'Invalid filename', desc => 'Filename too long (256 chars)' },
+    { file => 'malicious.jar', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.jar)' },
 );
 
 my $failed = 0;
