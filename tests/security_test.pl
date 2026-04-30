@@ -39,6 +39,9 @@ my @test_cases = (
     { file => 'attack.desktop', dir => 'incoming', expected => 'Forbidden file extension', desc => 'New blacklisted extension (.desktop)' },
     { file => 'script.bash', dir => 'incoming', expected => 'Forbidden file extension', desc => 'New blacklisted extension (.bash)' },
     { file => 'valid.txt', dir => 'incoming', expected => 'upgrade-insecure-requests', desc => 'Security Header: CSP upgrade-insecure-requests' },
+    { file => 'test.xml', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.xml)' },
+    { file => 'test.mhtml', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.mhtml)' },
+    { file => 'valid.txt', dir => 'incoming', expected => 'X-XSS-Protection: 0', desc => 'Security Header: X-XSS-Protection' },
 );
 
 my $failed = 0;

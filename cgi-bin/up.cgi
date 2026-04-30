@@ -14,7 +14,8 @@ my %sec_headers = (
     -charset                     => 'utf-8',
     -X_Frame_Options             => 'DENY',
     -X_Content_Type_Options      => 'nosniff',
-    -Content_Security_Policy     => "upgrade-insecure-requests; default-src 'self'; script-src 'none'; style-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none';",
+    -X_XSS_Protection             => '0',
+    -Content_Security_Policy     => "upgrade-insecure-requests; default-src 'self'; script-src 'none'; connect-src 'none'; form-action 'self'; style-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none';",
     -Strict_Transport_Security   => 'max-age=31536000; includeSubDomains',
     -Referrer_Policy             => 'no-referrer',
     -X_Permitted_Cross_Domain_Policies => 'none',
@@ -93,7 +94,7 @@ if ($filename !~ /^[a-zA-Z0-9_][a-zA-Z0-9_\-\.]{0,254}$/) {
 
 # SECURITY: Extension blacklist to prevent RCE and Stored XSS.
 # Checks for forbidden extensions anywhere in the filename (e.g., .php.txt).
-if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|sh|bash|zsh|exe|bat|cmd|html?|js|mjs|shtml|phtml|svg|svgz|asp[x]?|jspx?|vbs|ps1|wasm|xhtml|conf|config|jar|war|ear|swf|hta|scr|com|msi|vbe|jse|wsf|wsh|lnk|reg|jnlp|pif|desktop|url|application|gadget|msu|msp|docm|dotm|xlsm|xltm|pptm|potm|ppsm)(?:\.|\z)/i) {
+if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|sh|bash|zsh|exe|bat|cmd|html?|js|mjs|shtml|phtml|svg|svgz|asp[x]?|jspx?|vbs|ps1|wasm|xhtml|conf|config|jar|war|ear|swf|hta|scr|com|msi|vbe|jse|wsf|wsh|lnk|reg|jnlp|pif|desktop|url|application|gadget|msu|msp|docm|dotm|xlsm|xltm|pptm|potm|ppsm|xml|cjs|mhtml|vba|hlp|chm|ade|adp|mde|msc|mst|sct|shb|shs|wsc)(?:\.|\z)/i) {
     send_error("403 Forbidden", "Forbidden file extension");
 }
 
@@ -121,7 +122,7 @@ if (!defined $bytes_read && $!) {
 close $local_fh or send_error("500 Internal Server Error", "Failed to finalize upload");
 
 # SECURITY: Audit log the upload event
-my $remote_ip = $cgi->remote_host() || 'unknown';
+my $remote_ip = $cgi->remote_addr() || 'unknown';
 $remote_ip =~ s/[^\w\.\-:]//g; # Basic sanitization for logging
 warn "[AUDIT] File uploaded: filename=$filename, dir=$dir, size=" . (-s $upload_path) . ", ip=$remote_ip\n";
 
