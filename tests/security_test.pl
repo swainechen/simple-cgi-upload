@@ -44,6 +44,9 @@ my @test_cases = (
     { file => 'valid.txt', dir => 'incoming', expected => "connect-src 'none'", desc => 'Security Header: CSP connect-src' },
     { file => 'valid.txt', dir => 'incoming', expected => "form-action 'self'", desc => 'Security Header: CSP form-action' },
     { file => 'valid.txt', dir => 'incoming', expected => 'upgrade-insecure-requests', desc => 'Security Header: CSP upgrade-insecure-requests' },
+    { file => 'test.xml', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.xml)' },
+    { file => 'test.mhtml', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.mhtml)' },
+    { file => 'valid.txt', dir => 'incoming', expected => 'X-XSS-Protection: 0', desc => 'Security Header: X-XSS-Protection' },
 );
 
 my $failed = 0;
