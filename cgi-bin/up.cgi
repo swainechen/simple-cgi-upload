@@ -68,7 +68,7 @@ if (!exists $allowed_dirs{$dir}) {
     send_error("403 Forbidden", "Invalid or unauthorized directory");
 }
 if (! -d File::Spec->catdir($base_dir, $dir)) {
-    send_error("500 Internal Server Error", "Target directory does not exist");
+    send_error("500 Internal Server Error", "Internal server error");
 }
 
 my $file = $cgi->param('file');
@@ -113,16 +113,16 @@ sysopen (my $local_fh, $upload_path, $flags, 0644) or send_error("500 Internal S
 binmode $local_fh;
 my $buffer;
 my $bytes_read;
+my $filesize = 0;
 while ($bytes_read = read($upload_fh, $buffer, 4096)) {
-    print $local_fh $buffer or send_error("500 Internal Server Error", "Write failed");
+    $filesize += $bytes_read;
+    print $local_fh $buffer or send_error("500 Internal Server Error", "Internal server error");
 }
 # Check if read finished because of EOF or error
 if (!defined $bytes_read && $!) {
-    send_error("500 Internal Server Error", "Read failed: Internal server error");
+    send_error("500 Internal Server Error", "Internal server error");
 }
-close $local_fh or send_error("500 Internal Server Error", "Failed to finalize upload");
-
-my $filesize = (stat($upload_path))[7] || 0;
+close $local_fh or send_error("500 Internal Server Error", "Internal server error");
 
 # SECURITY: Audit log the upload event
 my $remote_ip = $cgi->remote_addr() || 'unknown';
