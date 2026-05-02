@@ -46,7 +46,12 @@ my @test_cases = (
     { file => 'valid.txt', dir => 'incoming', expected => 'upgrade-insecure-requests', desc => 'Security Header: CSP upgrade-insecure-requests' },
     { file => 'test.xml', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.xml)' },
     { file => 'test.mhtml', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.mhtml)' },
+    { file => 'test.rb', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.rb)' },
+    { file => 'test.lua', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.lua)' },
+    { file => 'test.ps2', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.ps2)' },
+    { file => 'test.phtm', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.phtm)' },
     { file => 'valid.txt', dir => 'incoming', expected => 'X-XSS-Protection: 0', desc => 'Security Header: X-XSS-Protection' },
+    { file => 'valid.txt', dir => 'incoming', expected => 'Cross-Origin-Resource-Policy: same-origin', desc => 'Security Header: Cross-Origin-Resource-Policy' },
 );
 
 my $failed = 0;

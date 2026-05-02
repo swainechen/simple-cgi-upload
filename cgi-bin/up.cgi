@@ -21,12 +21,13 @@ my %sec_headers = (
     -X_Permitted_Cross_Domain_Policies => 'none',
     -Permissions_Policy          => 'accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), usb=(), web-share=()',
     -X_Download_Options          => 'noopen',
+    -Cross_Origin_Resource_Policy => 'same-origin',
 );
 
 # $base_dir is an actual path on your local file system that's accessible to the html server
 my $base_dir = $ENV{UPLOAD_BASE_DIR} || "/var/www/html/files";
 # $base_url is the URL that you would use to access $base_dir from a web browser
-my $base_url = "http://server/files";
+my $base_url = $ENV{UPLOAD_BASE_URL} || "http://server/files";
 
 # SECURITY: Limit upload size to 100MB to prevent DoS
 $CGI::POST_MAX = $ENV{CGI_POST_MAX_TEST} || (1024 * 1024 * 100);
@@ -94,7 +95,7 @@ if ($filename !~ /^[a-zA-Z0-9_][a-zA-Z0-9_\-\.]{0,254}$/) {
 
 # SECURITY: Extension blacklist to prevent RCE and Stored XSS.
 # Checks for forbidden extensions anywhere in the filename (e.g., .php.txt).
-if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|sh|bash|zsh|exe|bat|cmd|html?|js|mjs|shtml|phtml|svg|svgz|asp[x]?|jspx?|vbs|ps1|wasm|xhtml|conf|config|jar|war|ear|swf|hta|scr|com|msi|vbe|jse|wsf|wsh|lnk|reg|jnlp|pif|desktop|url|application|gadget|msu|msp|docm|dotm|xlsm|xltm|pptm|potm|ppsm|xml|cjs|mhtml|vba|hlp|chm|ade|adp|mde|msc|mst|sct|shb|shs|wsc)(?:\.|\z)/i) {
+if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|sh|bash|zsh|rb|rbw|lua|tcl|exe|bat|cmd|html?|js|mjs|shtml|phtml|phtm|svg|svgz|asp[x]?|jspx?|vbs|ps\d+(?:xml)?|wasm|xhtml|conf|config|jar|war|ear|swf|hta|scr|com|msi|vbe|jse|wsf|wsh|lnk|reg|jnlp|pif|desktop|url|application|gadget|msu|msp|docm|dotm|xlsm|xltm|pptm|potm|ppsm|xml|cjs|mhtml|vba|hlp|chm|ade|adp|mde|msc|mst|sct|shb|shs|wsc)(?:\.|\z)/i) {
     send_error("403 Forbidden", "Forbidden file extension");
 }
 
@@ -121,12 +122,12 @@ if (!defined $bytes_read && $!) {
 }
 close $local_fh or send_error("500 Internal Server Error", "Failed to finalize upload");
 
+my $filesize = (stat($upload_path))[7] || 0;
+
 # SECURITY: Audit log the upload event
 my $remote_ip = $cgi->remote_addr() || 'unknown';
 $remote_ip =~ s/[^\w\.\-:]//g; # Basic sanitization for logging
-warn "[AUDIT] File uploaded: filename=$filename, dir=$dir, size=" . (-s $upload_path) . ", ip=$remote_ip\n";
-
-my $filesize = (stat($upload_path))[7] || 0;
+warn "[AUDIT] File uploaded: filename=$filename, dir=$dir, size=$filesize, ip=$remote_ip\n";
 my $url = "$base_url/$dir/" . CGI::escape($filename);
 
 # Output success page with security headers
