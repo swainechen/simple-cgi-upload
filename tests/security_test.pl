@@ -52,6 +52,10 @@ my @test_cases = (
     { file => 'test.phtm', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.phtm)' },
     { file => 'valid.txt', dir => 'incoming', expected => 'X-XSS-Protection: 0', desc => 'Security Header: X-XSS-Protection' },
     { file => 'valid.txt', dir => 'incoming', expected => 'Cross-Origin-Resource-Policy: same-origin', desc => 'Security Header: Cross-Origin-Resource-Policy' },
+    { file => 'valid.txt', dir => 'incoming', expected => 'Cross-Origin-Opener-Policy: same-origin', desc => 'Security Header: Cross-Origin-Opener-Policy' },
+    { file => 'valid.txt', dir => 'incoming', expected => 'Cross-Origin-Embedder-Policy: require-corp', desc => 'Security Header: Cross-Origin-Embedder-Policy' },
+    { file => 'valid.txt', dir => 'incoming', expected => 'Cache-Control: no-store, max-age=0', desc => 'Security Header: Cache-Control' },
+    { file => 'script.php', dir => 'incoming', expected => '[SECURITY REJECTION] status=403 Forbidden', desc => 'Audit Log: Security Rejection' },
 );
 
 my $failed = 0;
