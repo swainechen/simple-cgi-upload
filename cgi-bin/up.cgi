@@ -22,6 +22,9 @@ my %sec_headers = (
     -Permissions_Policy          => 'accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), usb=(), web-share=()',
     -X_Download_Options          => 'noopen',
     -Cross_Origin_Resource_Policy => 'same-origin',
+    -Cross_Origin_Opener_Policy  => 'same-origin',
+    -Cross_Origin_Embedder_Policy => 'require-corp',
+    -Cache_Control               => 'no-store, max-age=0',
 );
 
 # $base_dir is an actual path on your local file system that's accessible to the html server
@@ -34,9 +37,14 @@ $CGI::POST_MAX = $ENV{CGI_POST_MAX_TEST} || (1024 * 1024 * 100);
 
 my $cgi = new CGI;
 
+# SECURITY: Sanitize remote IP for logging
+my $remote_ip = $cgi->remote_addr() || 'unknown';
+$remote_ip =~ s/[^\w\.\-:]//g;
+
 # SECURITY: Centralized error handling
 sub send_error {
     my ($status, $message) = @_;
+    warn "[ERROR] status=$status, message=$message, ip=$remote_ip\n";
     print $cgi->header(%sec_headers, -status => $status);
     my $esc_message = $cgi->escapeHTML($message);
     my $esc_status = $cgi->escapeHTML($status);
@@ -109,24 +117,32 @@ my $upload_path = File::Spec->catfile($base_dir, $dir, $filename);
 # SECURITY: Use sysopen with O_CREAT | O_TRUNC | O_NOFOLLOW to prevent symlink attacks while allowing secure overwrites.
 my $flags = O_WRONLY | O_CREAT | O_TRUNC;
 $flags |= O_NOFOLLOW if defined &O_NOFOLLOW;
-sysopen (my $local_fh, $upload_path, $flags, 0644) or send_error("500 Internal Server Error", "Upload failed: Internal server error");
+sysopen (my $local_fh, $upload_path, $flags, 0644) or do {
+    warn "[ERROR] sysopen failed for $upload_path: $!\n";
+    send_error("500 Internal Server Error", "Upload failed: Internal server error");
+};
 binmode $local_fh;
 my $buffer;
 my $bytes_read;
 my $filesize = 0;
 while ($bytes_read = read($upload_fh, $buffer, 4096)) {
     $filesize += $bytes_read;
-    print $local_fh $buffer or send_error("500 Internal Server Error", "Internal server error");
+    print $local_fh $buffer or do {
+        warn "[ERROR] write failed for $upload_path: $!\n";
+        send_error("500 Internal Server Error", "Internal server error");
+    };
 }
 # Check if read finished because of EOF or error
 if (!defined $bytes_read && $!) {
+    warn "[ERROR] read failed from upload filehandle: $!\n";
     send_error("500 Internal Server Error", "Internal server error");
 }
-close $local_fh or send_error("500 Internal Server Error", "Internal server error");
+close $local_fh or do {
+    warn "[ERROR] close failed for $upload_path: $!\n";
+    send_error("500 Internal Server Error", "Internal server error");
+};
 
 # SECURITY: Audit log the upload event
-my $remote_ip = $cgi->remote_addr() || 'unknown';
-$remote_ip =~ s/[^\w\.\-:]//g; # Basic sanitization for logging
 warn "[AUDIT] File uploaded: filename=$filename, dir=$dir, size=$filesize, ip=$remote_ip\n";
 my $url = "$base_url/$dir/" . CGI::escape($filename);
 
