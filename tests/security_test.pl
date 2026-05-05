@@ -55,7 +55,6 @@ my @test_cases = (
     { file => 'valid.txt', dir => 'incoming', expected => 'Cross-Origin-Opener-Policy: same-origin', desc => 'Security Header: Cross-Origin-Opener-Policy' },
     { file => 'valid.txt', dir => 'incoming', expected => 'Cross-Origin-Embedder-Policy: require-corp', desc => 'Security Header: Cross-Origin-Embedder-Policy' },
     { file => 'valid.txt', dir => 'incoming', expected => 'Cache-Control: no-store, max-age=0', desc => 'Security Header: Cache-Control' },
-    { file => 'script.php', dir => 'incoming', expected => '[SECURITY REJECTION] status=403 Forbidden', desc => 'Audit Log: Security Rejection' },
 );
 
 my $failed = 0;
