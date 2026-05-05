@@ -44,7 +44,12 @@ $remote_ip =~ s/[^\w\.\-:]//g;
 # SECURITY: Centralized error handling
 sub send_error {
     my ($status, $message) = @_;
-    warn "[ERROR] status=$status, message=$message, ip=$remote_ip\n";
+    # SECURITY: Sanitize for logging to prevent log injection
+    my $san_status = $status; $san_status =~ s/[^\w\s\-\.]//g;
+    my $san_message = $message; $san_message =~ s/[^\w\s\-\.]//g;
+    warn "[ERROR] status=$san_status, message=$san_message, ip=$remote_ip\n";
+    # SECURITY: Sanitize status to prevent header injection
+    $status =~ s/[\r\n]//g;
     print $cgi->header(%sec_headers, -status => $status);
     my $esc_message = $cgi->escapeHTML($message);
     my $esc_status = $cgi->escapeHTML($status);
@@ -121,6 +126,8 @@ sysopen (my $local_fh, $upload_path, $flags, 0644) or do {
     warn "[ERROR] sysopen failed for $upload_path: $!\n";
     send_error("500 Internal Server Error", "Upload failed: Internal server error");
 };
+# SECURITY: Explicitly chmod to ensure strict permissions (0644) even if overwriting an existing file with loose permissions.
+chmod(0644, $local_fh) or warn "[ERROR] chmod failed for $upload_path: $!\n";
 binmode $local_fh;
 my $buffer;
 my $bytes_read;
