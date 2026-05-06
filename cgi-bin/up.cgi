@@ -106,9 +106,14 @@ if ($filename !~ /^[a-zA-Z0-9_][a-zA-Z0-9_\-\.]{0,254}$/) {
     send_error("400 Bad Request", "Invalid filename");
 }
 
+# SECURITY: Prevent Windows reserved filenames (e.g., CON, PRN, AUX, NUL, COM1-9, LPT1-9).
+if ($filename =~ /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?$/i) {
+    send_error("400 Bad Request", "Reserved filename");
+}
+
 # SECURITY: Extension blacklist to prevent RCE and Stored XSS.
 # Checks for forbidden extensions anywhere in the filename (e.g., .php.txt).
-if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|sh|bash|zsh|rb|rbw|lua|tcl|exe|bat|cmd|html?|js|mjs|shtml|phtml|phtm|svg|svgz|asp[x]?|jspx?|vbs|ps\d+(?:xml)?|wasm|xhtml|conf|config|jar|war|ear|swf|hta|scr|com|msi|vbe|jse|wsf|wsh|lnk|reg|jnlp|pif|desktop|url|application|gadget|msu|msp|docm|dotm|xlsm|xltm|pptm|potm|ppsm|xml|cjs|mhtml|vba|hlp|chm|ade|adp|mde|msc|mst|sct|shb|shs|wsc)(?:\.|\z)/i) {
+if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|pyw|pyc|pyo|sh|bash|zsh|rb|rbw|lua|tcl|exe|bat|cmd|inf|scf|html?|js|mjs|shtml|phtml|phtm|svg|svgz|asp[x]?|jspx?|vbs|ps\d+(?:xml)?|wasm|xhtml|conf|config|jar|war|ear|swf|hta|scr|com|msi|vbe|jse|wsf|wsh|lnk|reg|jnlp|pif|desktop|url|application|gadget|msu|msp|docm|dotm|xlsm|xltm|pptm|potm|ppsm|xml|cjs|mhtml|vba|hlp|chm|ade|adp|mde|msc|mst|sct|shb|shs|wsc)(?:\.|\z)/i) {
     send_error("403 Forbidden", "Forbidden file extension");
 }
 
@@ -134,20 +139,25 @@ my $bytes_read;
 my $filesize = 0;
 while ($bytes_read = read($upload_fh, $buffer, 4096)) {
     $filesize += $bytes_read;
-    print $local_fh $buffer or do {
+    if (!print $local_fh $buffer) {
         warn "[ERROR] write failed for $upload_path: $!\n";
+        close $local_fh;
+        unlink $upload_path;
         send_error("500 Internal Server Error", "Internal server error");
-    };
+    }
 }
 # Check if read finished because of EOF or error
 if (!defined $bytes_read && $!) {
     warn "[ERROR] read failed from upload filehandle: $!\n";
+    close $local_fh;
+    unlink $upload_path;
     send_error("500 Internal Server Error", "Internal server error");
 }
-close $local_fh or do {
+if (!close $local_fh) {
     warn "[ERROR] close failed for $upload_path: $!\n";
+    unlink $upload_path;
     send_error("500 Internal Server Error", "Internal server error");
-};
+}
 
 # SECURITY: Audit log the upload event
 warn "[AUDIT] File uploaded: filename=$filename, dir=$dir, size=$filesize, ip=$remote_ip\n";
