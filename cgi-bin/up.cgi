@@ -113,7 +113,7 @@ if ($filename =~ /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?$/i) {
 
 # SECURITY: Extension blacklist to prevent RCE and Stored XSS.
 # Checks for forbidden extensions anywhere in the filename (e.g., .php.txt).
-if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|pyw|pyc|pyo|sh|bash|zsh|rb|rbw|lua|tcl|exe|bat|cmd|inf|scf|html?|js|mjs|shtml|phtml|phtm|svg|svgz|asp[x]?|jspx?|vbs|ps\d+(?:xml)?|wasm|xhtml|conf|config|jar|war|ear|swf|hta|scr|com|msi|vbe|jse|wsf|wsh|lnk|reg|jnlp|pif|desktop|url|application|gadget|msu|msp|docm|dotm|xlsm|xltm|pptm|potm|ppsm|xml|cjs|mhtml|vba|hlp|chm|ade|adp|mde|msc|mst|sct|shb|shs|wsc)(?:\.|\z)/i) {
+if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|pyw|pyc|pyo|sh|bash|zsh|rb|rbw|lua|tcl|exe|bat|cmd|cpl|iso|ins|isp|job|inf|scf|html?|js|mjs|shtml|phtml|phtm|svg|svgz|asp[x]?|jspx?|vbs|ps\d+(?:xml)?|wasm|xhtml|conf|config|jar|war|ear|swf|hta|scr|com|msi|vbe|jse|wsf|wsh|lnk|reg|jnlp|pif|desktop|url|application|gadget|msu|msp|docm|dotm|xlsm|xltm|pptm|potm|ppsm|xml|cjs|mhtml|vba|hlp|chm|ade|adp|mde|msc|mst|sct|shb|shs|wsc)(?:\.|\z)/i) {
     send_error("403 Forbidden", "Forbidden file extension");
 }
 
@@ -121,6 +121,8 @@ if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|pyw|pyc|pyo|sh|bash|zsh|rb
 if (!defined $upload_fh) {
     send_error("400 Bad Request", "No file uploaded or filehandle is invalid");
 }
+# SECURITY: Ensure the input filehandle is in binary mode
+binmode $upload_fh;
 
 # SECURITY: 3-arg open and restricted permissions
 my $upload_path = File::Spec->catfile($base_dir, $dir, $filename);
