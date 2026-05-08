@@ -16,7 +16,7 @@ my %sec_headers = (
     -X_Content_Type_Options      => 'nosniff',
     -X_XSS_Protection             => '0',
     -Content_Security_Policy     => "upgrade-insecure-requests; default-src 'self'; script-src 'none'; connect-src 'none'; form-action 'self'; style-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none';",
-    -Strict_Transport_Security   => 'max-age=31536000; includeSubDomains',
+    -Strict_Transport_Security   => 'max-age=31536000; includeSubDomains; preload',
     -Referrer_Policy             => 'no-referrer',
     -X_Permitted_Cross_Domain_Policies => 'none',
     -Permissions_Policy          => 'accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), usb=(), web-share=()',
@@ -113,7 +113,7 @@ if ($filename =~ /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?$/i) {
 
 # SECURITY: Extension blacklist to prevent RCE and Stored XSS.
 # Checks for forbidden extensions anywhere in the filename (e.g., .php.txt).
-if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|pyw|pyc|pyo|sh|bash|zsh|rb|rbw|lua|tcl|exe|bat|cmd|cpl|iso|ins|isp|job|inf|scf|html?|js|mjs|shtml|phtml|phtm|svg|svgz|asp[x]?|jspx?|vbs|ps\d+(?:xml)?|wasm|xhtml|conf|config|jar|war|ear|swf|hta|scr|com|msi|vbe|jse|wsf|wsh|lnk|reg|jnlp|pif|desktop|url|application|gadget|msu|msp|docm|dotm|xlsm|xltm|pptm|potm|ppsm|xml|cjs|mhtml|vba|hlp|chm|ade|adp|mde|msc|mst|sct|shb|shs|wsc)(?:\.|\z)/i) {
+if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|pyw|pyc|pyo|sh|bash|zsh|rb|rbw|lua|tcl|exe|bat|cmd|cpl|iso|ins|isp|job|inf|scf|html?|js|mjs|shtml|phtml|phtm|svg|svgz|asp[x]?|jspx?|asmx|ashx|svc|vbs|ps\d+(?:xml)?|psm1|psd1|wasm|xhtml|conf|config|jar|war|ear|swf|hta|scr|com|msi|vbe|jse|wsf|wsh|lnk|reg|jnlp|pif|desktop|url|application|gadget|msu|msp|docm|dotm|xlsm|xltm|pptm|potm|ppsm|xml|cjs|mhtml|mht|vba|hlp|chm|ade|adp|mde|msc|mst|sct|shb|shs|wsc)(?:\.|\z)/i) {
     send_error("403 Forbidden", "Forbidden file extension");
 }
 
