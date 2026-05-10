@@ -121,7 +121,7 @@ if ($filename =~ /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?$/i) {
 
 # SECURITY: Extension blacklist to prevent RCE and Stored XSS.
 # Checks for forbidden extensions anywhere in the filename (e.g., .php.txt).
-if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|pyw|pyc|pyo|sh|bash|zsh|rb|rbw|lua|tcl|exe|bat|cmd|cpl|iso|ins|isp|job|inf|scf|html?|js|mjs|shtml|phtml|phtm|svg|svgz|asp[x]?|jspx?|asmx|ashx|svc|vbs|ps\d+(?:xml)?|psm1|psd1|wasm|xhtml|conf|config|jar|war|ear|swf|hta|scr|com|msi|vbe|jse|wsf|wsh|lnk|reg|jnlp|pif|desktop|url|application|gadget|msu|msp|docm|dotm|xlsm|xltm|pptm|potm|ppsm|xml|cjs|mhtml|mht|vba|hlp|chm|ade|adp|mde|msc|mst|sct|shb|shs|wsc|asax|ascx|master|skin|browser|compiled|cfm|cfc|cfml|psc1|psc2|shtm|stm|pyd)(?:\.|\z)/i) {
+if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|pyw|pyc|pyo|sh|bash|zsh|rb|rbw|lua|tcl|exe|bat|cmd|cpl|iso|ins|isp|job|inf|scf|html?|js|mjs|shtml|phtml|phtm|svg|svgz|asp[x]?|jspx?|asmx|ashx|svc|vbs|ps\d+(?:xml)?|psm1|psd1|wasm|xhtml|conf|config|jar|war|ear|swf|hta|scr|com|msi|vbe|jse|wsf|wsh|lnk|reg|jnlp|pif|desktop|url|application|gadget|msu|msp|docm|dotm|xlsm|xltm|pptm|potm|ppsm|xml|cjs|mhtml|mht|vba|hlp|chm|ade|adp|mde|msc|mst|sct|shb|shs|wsc|asax|ascx|master|skin|browser|compiled|cfm|cfc|cfml|psc1|psc2|shtm|stm|pyd|class|java|dll|so|dylib|cab|vxd|sys|fish|docb|xlam|sldm|phpt|env|htaccess|htpasswd|inc|module)(?:\.|\z)/i) {
     send_error("403 Forbidden", "Forbidden file extension");
 }
 
@@ -172,7 +172,7 @@ if (!close $local_fh) {
 # SECURITY: Audit log the upload event
 my $san_filename = sanitize_for_log($filename);
 my $san_dir = sanitize_for_log($dir);
-warn "[AUDIT] File uploaded: filename=$san_filename, dir=$san_dir, size=$filesize, ip=$remote_ip\n";
+warn "[AUDIT] ip=$remote_ip, File uploaded: filename=$san_filename, dir=$san_dir, size=$filesize\n";
 my $url = "$base_url/$dir/" . CGI::escape($filename);
 
 # Output success page with security headers
