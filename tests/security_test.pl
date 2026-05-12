@@ -86,6 +86,9 @@ my @test_cases = (
     { file => 'test.shtm', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.shtm)' },
     { file => 'test.stm', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.stm)' },
     { file => 'test.pyd', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.pyd)' },
+    { file => 'test.command', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.command)' },
+    { file => 'test.tool', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.tool)' },
+    { file => 'test.keychain', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.keychain)' },
     { file => 'valid.txt', dir => 'incoming', expected => 'Strict-Transport-Security: max-age=31536000; includeSubDomains; preload', desc => 'Security Header: HSTS with preload' },
 );
 
