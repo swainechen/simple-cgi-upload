@@ -121,7 +121,7 @@ if ($filename =~ /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?$/i) {
 
 # SECURITY: Extension blacklist to prevent RCE and Stored XSS.
 # Checks for forbidden extensions anywhere in the filename (e.g., .php.txt).
-if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|pyw|pyc|pyo|sh|bash|zsh|rb|rbw|lua|tcl|exe|bat|cmd|cpl|iso|ins|isp|job|inf|scf|html?|js|mjs|shtml|phtml|phtm|svg|svgz|asp[x]?|jspx?|asmx|ashx|svc|vbs|ps\d+(?:xml)?|psm1|psd1|wasm|xhtml|conf|config|jar|war|ear|swf|hta|scr|com|msi|vbe|jse|wsf|wsh|lnk|reg|jnlp|pif|desktop|url|application|gadget|msu|msp|docm|dotm|xlsm|xltm|pptm|potm|ppsm|xml|cjs|mhtml|mht|vba|hlp|chm|ade|adp|mde|msc|mst|sct|shb|shs|wsc|asax|ascx|master|skin|browser|compiled|cfm|cfc|cfml|psc1|psc2|shtm|stm|pyd|class|java|dll|so|dylib|cab|vxd|sys|fish|docb|xlam|sldm|phpt|env|htaccess|htpasswd|inc|module)(?:\.|\z)/i) {
+if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|pyw|pyc|pyo|sh|bash|zsh|rb|rbw|lua|tcl|exe|bat|cmd|cpl|iso|ins|isp|job|inf|scf|html?|js|mjs|shtml|phtml|phtm|svg|svgz|asp[x]?|jspx?|asmx|ashx|svc|vbs|ps\d+(?:xml)?|psm1|psd1|wasm|xhtml|conf|config|jar|war|ear|swf|hta|scr|com|msi|vbe|jse|wsf|wsh|lnk|reg|jnlp|pif|desktop|url|application|gadget|msu|msp|docm|dotm|xlsm|xltm|pptm|potm|ppsm|xml|cjs|mhtml|mht|vba|hlp|chm|ade|adp|mde|msc|mst|sct|shb|shs|wsc|asax|ascx|master|skin|browser|compiled|cfm|cfc|cfml|psc1|psc2|shtm|stm|pyd|class|java|dll|so|dylib|cab|vxd|sys|fish|docb|xlam|sldm|phpt|env|htaccess|htpasswd|inc|module|command|tool|keychain)(?:\.|\z)/i) {
     send_error("403 Forbidden", "Forbidden file extension");
 }
 
@@ -138,11 +138,17 @@ my $upload_path = File::Spec->catfile($base_dir, $dir, $filename);
 my $flags = O_WRONLY | O_CREAT | O_TRUNC;
 $flags |= O_NOFOLLOW if defined &O_NOFOLLOW;
 sysopen (my $local_fh, $upload_path, $flags, 0644) or do {
-    warn "[ERROR] sysopen failed for $upload_path: $!\n";
+    my $san_upload_path = sanitize_for_log($upload_path);
+    my $san_error = sanitize_for_log($!);
+    warn "[ERROR] sysopen failed for $san_upload_path: $san_error\n";
     send_error("500 Internal Server Error", "Upload failed: Internal server error");
 };
 # SECURITY: Explicitly chmod to ensure strict permissions (0644) even if overwriting an existing file with loose permissions.
-chmod(0644, $local_fh) or warn "[ERROR] chmod failed for $upload_path: $!\n";
+chmod(0644, $local_fh) or do {
+    my $san_upload_path = sanitize_for_log($upload_path);
+    my $san_error = sanitize_for_log($!);
+    warn "[ERROR] chmod failed for $san_upload_path: $san_error\n";
+};
 binmode $local_fh;
 my $buffer;
 my $bytes_read;
@@ -150,7 +156,9 @@ my $filesize = 0;
 while ($bytes_read = read($upload_fh, $buffer, 4096)) {
     $filesize += $bytes_read;
     if (!print $local_fh $buffer) {
-        warn "[ERROR] write failed for $upload_path: $!\n";
+        my $san_upload_path = sanitize_for_log($upload_path);
+        my $san_error = sanitize_for_log($!);
+        warn "[ERROR] write failed for $san_upload_path: $san_error\n";
         close $local_fh;
         unlink $upload_path;
         send_error("500 Internal Server Error", "Internal server error");
@@ -158,13 +166,16 @@ while ($bytes_read = read($upload_fh, $buffer, 4096)) {
 }
 # Check if read finished because of EOF or error
 if (!defined $bytes_read && $!) {
-    warn "[ERROR] read failed from upload filehandle: $!\n";
+    my $san_error = sanitize_for_log($!);
+    warn "[ERROR] read failed from upload filehandle: $san_error\n";
     close $local_fh;
     unlink $upload_path;
     send_error("500 Internal Server Error", "Internal server error");
 }
 if (!close $local_fh) {
-    warn "[ERROR] close failed for $upload_path: $!\n";
+    my $san_upload_path = sanitize_for_log($upload_path);
+    my $san_error = sanitize_for_log($!);
+    warn "[ERROR] close failed for $san_upload_path: $san_error\n";
     unlink $upload_path;
     send_error("500 Internal Server Error", "Internal server error");
 }
