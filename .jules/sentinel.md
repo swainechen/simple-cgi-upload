@@ -46,3 +46,8 @@
 **Vulnerability:** Inconsistent security headers and improper HTTP status codes in error responses.
 **Learning:** Legacy CGI scripts often print error messages directly before headers are sent or omit security headers in error paths. Furthermore, returning `200 OK` for validation failures (like invalid filenames) is poor practice and can interfere with automated security scanning.
 **Prevention:** Implement a centralized `send_error` function that emits proper HTTP status codes (400, 403, 500) and includes a full set of modern security headers (CSP, HSTS, X-Frame-Options) for every response, ensuring consistent protection across all code paths.
+
+## 2025-05-15 - [DoS via Parameter Inflation and Log Traceability]
+**Vulnerability:** Denial of Service via excessive form parameters or multipart records, and difficult audit log correlation.
+**Learning:** `CGI.pm` by default may not limit the number of parameters or multipart records, allowing an attacker to consume memory and CPU. Additionally, inconsistent log formats make it harder for automated tools to trace malicious activity.
+**Prevention:** Set `$CGI::MAX_PARAMS` and `$CGI::MAX_MULTIPART_RECORDS` to sensible limits. Standardize security logs to start with the sanitized remote IP for consistent traceability and easier parsing by security monitoring tools.
