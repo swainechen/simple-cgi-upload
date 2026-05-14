@@ -6,37 +6,117 @@ my $debug = 0;
 use File::Basename qw(basename fileparse_set_fstype);
 use File::Spec;
 use Fcntl qw(:DEFAULT O_NOFOLLOW);
+use FindBin qw($Bin);
 use CGI;
 
-# SECURITY: Modern security headers hash to ensure consistency
-my %sec_headers = (
-    -type                        => 'text/html',
-    -charset                     => 'utf-8',
-    -X_Frame_Options             => 'DENY',
-    -X_Content_Type_Options      => 'nosniff',
-    -X_XSS_Protection             => '0',
-    -Content_Security_Policy     => "upgrade-insecure-requests; default-src 'self'; script-src 'none'; connect-src 'none'; form-action 'self'; style-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none';",
-    -Strict_Transport_Security   => 'max-age=31536000; includeSubDomains; preload',
-    -Referrer_Policy             => 'no-referrer',
-    -X_Permitted_Cross_Domain_Policies => 'none',
-    -Permissions_Policy          => 'accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), usb=(), web-share=()',
-    -X_Download_Options          => 'noopen',
-    -Cross_Origin_Resource_Policy => 'same-origin',
-    -Cross_Origin_Opener_Policy  => 'same-origin',
-    -Cross_Origin_Embedder_Policy => 'require-corp',
-    -Cache_Control               => 'no-store, max-age=0',
-);
+sub trim {
+    my ($value) = @_;
+    return '' unless defined $value;
+    $value =~ s/^\s+|\s+$//g;
+    return $value;
+}
+
+sub parse_config_file {
+    my ($path) = @_;
+    my %config;
+    return %config unless defined $path;
+    $path = File::Spec->rel2abs($path);
+    return %config unless -e $path;
+    open my $fh, '<', $path or do {
+        warn "Could not read config file $path: $!\n";
+        return %config;
+    };
+    while (<$fh>) {
+        s/#.*//;
+        s/^\s+|\s+$//g;
+        next unless length;
+        my ($key, $value) = split /=/, $_, 2;
+        next unless defined $value;
+        $config{trim($key)} = trim($value);
+    }
+    close $fh;
+    return %config;
+}
+
+sub load_security_headers {
+    my ($config_value) = @_;
+    my %headers = (
+        -type                        => 'text/html',
+        -charset                     => 'utf-8',
+        -X_Frame_Options             => 'DENY',
+        -X_Content_Type_Options      => 'nosniff',
+        -X_XSS_Protection            => '0',
+        -Content_Security_Policy     => "upgrade-insecure-requests; default-src 'self'; script-src 'none'; connect-src 'none'; form-action 'self'; style-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none';",
+        -Strict_Transport_Security   => 'max-age=31536000; includeSubDomains; preload',
+        -Referrer_Policy             => 'no-referrer',
+        -X_Permitted_Cross_Domain_Policies => 'none',
+        -Permissions_Policy          => 'accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), usb=(), web-share=()',
+        -X_Download_Options          => 'noopen',
+        -Cross_Origin_Resource_Policy => 'same-origin',
+        -Cross_Origin_Opener_Policy  => 'same-origin',
+        -Cross_Origin_Embedder_Policy => 'require-corp',
+        -Cache_Control               => 'no-store, max-age=0',
+    );
+    return %headers unless defined $config_value && length $config_value;
+    for my $entry (split /\s*;\s*/, $config_value) {
+        next unless length $entry;
+        my ($name, $value) = split /:/, $entry, 2;
+        next unless defined $value;
+        $name = trim($name);
+        $value = trim($value);
+        next unless length $name;
+        $headers{"-$name"} = $value;
+    }
+    return %headers;
+}
+
+sub compile_extension_regex {
+    my @patterns = @_;
+    my @parts;
+    for my $pattern (@patterns) {
+        next unless defined $pattern;
+        $pattern = trim($pattern);
+        next unless length $pattern;
+        if ($pattern =~ /[\\\^\$\.\|\?\*\+\(\)\[\]\{\}]/) {
+            push @parts, $pattern;
+        } else {
+            push @parts, quotemeta($pattern);
+        }
+    }
+    return qr/\.(?:@{[ join '|', @parts ] })(?:\.|\z)/i;
+}
+
+my %config = parse_config_file($ENV{UPLOAD_CONFIG_FILE} || File::Spec->catfile($Bin, 'upload.conf'));
+my %sec_headers = load_security_headers($ENV{UPLOAD_SECURITY_HEADERS} || $config{UPLOAD_SECURITY_HEADERS});
 
 # $base_dir is an actual path on your local file system that's accessible to the html server
-my $base_dir = $ENV{UPLOAD_BASE_DIR} || "/var/www/html/files";
+my $base_dir = $ENV{UPLOAD_BASE_DIR} || $config{UPLOAD_BASE_DIR} || "/var/www/html/files";
 # $base_url is the URL that you would use to access $base_dir from a web browser
-my $base_url = $ENV{UPLOAD_BASE_URL} || "http://server/files";
+my $base_url = $ENV{UPLOAD_BASE_URL} || $config{UPLOAD_BASE_URL} || "http://server/files";
 
-# SECURITY: Limit upload size to 100MB to prevent DoS
-$CGI::POST_MAX = $ENV{CGI_POST_MAX_TEST} || (1024 * 1024 * 100);
-# SECURITY: Limit parameters and multipart records to prevent DoS
-$CGI::MAX_PARAMS = 100;
-$CGI::MAX_MULTIPART_RECORDS = 100;
+# SECURITY: Limit upload size to prevent DoS; configurable via environment or config file
+$CGI::POST_MAX = $ENV{CGI_POST_MAX_TEST} || $ENV{UPLOAD_MAX_SIZE} || $config{UPLOAD_MAX_SIZE} || (1024 * 1024 * 100);
+# SECURITY: Limit parameters and multipart records to prevent DoS; configurable via environment or config file
+$CGI::MAX_PARAMS = $ENV{UPLOAD_MAX_PARAMS} || $config{UPLOAD_MAX_PARAMS} || 100;
+$CGI::MAX_MULTIPART_RECORDS = $ENV{UPLOAD_MAX_MULTIPART_RECORDS} || $config{UPLOAD_MAX_MULTIPART_RECORDS} || 100;
+
+my %allowed_dirs = map { $_ => 1 } grep { length } map { trim($_) } split /,/, ($ENV{UPLOAD_ALLOWED_DIRS} || $config{UPLOAD_ALLOWED_DIRS} || 'incoming');
+
+my @default_forbidden_extensions = (
+    'pl','cgi','php\d*','phps','pht','phar','py','pyw','pyc','pyo','sh','bash','zsh',
+    'rb','rbw','lua','tcl','exe','bat','cmd','cpl','iso','ins','isp','job','inf','scf',
+    'html?','js','mjs','shtml','phtml','phtm','svg','svgz','asp[x]?','jspx?','asmx','ashx','svc',
+    'vbs','ps\d+(?:xml)?','psm1','psd1','wasm','xhtml','conf','config','jar','war','ear','swf','hta',
+    'scr','com','msi','vbe','jse','wsf','wsh','lnk','reg','jnlp','pif','desktop','url','application',
+    'gadget','msu','msp','docm','dotm','xlsm','xltm','pptm','potm','ppsm','xml','cjs','mhtml','mht',
+    'vba','hlp','chm','ade','adp','mde','msc','mst','sct','shb','shs','wsc','asax','ascx','master',
+    'skin','browser','compiled','cfm','cfc','cfml','psc1','psc2','shtm','stm','pyd','class','java',
+    'dll','so','dylib','cab','vxd','sys','fish','docb','xlam','sldm','phpt','env','htaccess','htpasswd',
+    'inc','module','command','tool','keychain','ini','log','sql','sqlite','db','yaml','yml','properties',
+    'jspa','do','action','cshtml','vbhtml'
+);
+my @forbidden_extensions = split /,/, ($ENV{UPLOAD_FORBIDDEN_EXTENSIONS} || $config{UPLOAD_FORBIDDEN_EXTENSIONS} || join(',', @default_forbidden_extensions));
+my $forbidden_ext_re = compile_extension_regex(@forbidden_extensions);
 
 my $cgi = new CGI;
 
@@ -87,7 +167,6 @@ if (my $error = $cgi->cgi_error) {
 
 my $dir = $cgi->param('dir') || 'incoming';
 # SECURITY: Strict whitelist for directory to prevent path traversal
-my %allowed_dirs = ( 'incoming' => 1 );
 if (!exists $allowed_dirs{$dir}) {
     send_error("403 Forbidden", "Invalid or unauthorized directory");
 }
@@ -124,7 +203,7 @@ if ($filename =~ /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?$/i) {
 
 # SECURITY: Extension blacklist to prevent RCE and Stored XSS.
 # Checks for forbidden extensions anywhere in the filename (e.g., .php.txt).
-if ($filename =~ /\.(?:pl|cgi|php\d*|phps|pht|phar|py|pyw|pyc|pyo|sh|bash|zsh|rb|rbw|lua|tcl|exe|bat|cmd|cpl|iso|ins|isp|job|inf|scf|html?|js|mjs|shtml|phtml|phtm|svg|svgz|asp[x]?|jspx?|asmx|ashx|svc|vbs|ps\d+(?:xml)?|psm1|psd1|wasm|xhtml|conf|config|jar|war|ear|swf|hta|scr|com|msi|vbe|jse|wsf|wsh|lnk|reg|jnlp|pif|desktop|url|application|gadget|msu|msp|docm|dotm|xlsm|xltm|pptm|potm|ppsm|xml|cjs|mhtml|mht|vba|hlp|chm|ade|adp|mde|msc|mst|sct|shb|shs|wsc|asax|ascx|master|skin|browser|compiled|cfm|cfc|cfml|psc1|psc2|shtm|stm|pyd|class|java|dll|so|dylib|cab|vxd|sys|fish|docb|xlam|sldm|phpt|env|htaccess|htpasswd|inc|module|command|tool|keychain|ini|log|sql|sqlite|db|yaml|yml|properties|jspa|do|action|cshtml|vbhtml)(?:\.|\z)/i) {
+if ($filename =~ $forbidden_ext_re) {
     send_error("403 Forbidden", "Forbidden file extension");
 }
 

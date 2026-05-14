@@ -10,6 +10,16 @@ The `upload.html` file kicks out to the `up.cgi` file, which needs to be placed 
 
 The `up.cgi` file has a few variables that should be set for your system, namely `$base_dir` and `$base_url`, which should point to the same directory (I set this up as the directory where the html files were served from).
 
+This version also supports optional configuration via environment variables or an `upload.conf` file placed alongside `cgi-bin/up.cgi`. The relevant settings include:
+* `UPLOAD_BASE_DIR` / `UPLOAD_BASE_URL`
+* `UPLOAD_MAX_SIZE` to control the maximum upload payload
+* `UPLOAD_MAX_PARAMS` and `UPLOAD_MAX_MULTIPART_RECORDS` to control CGI parser limits
+* `UPLOAD_ALLOWED_DIRS` to whitelist subdirectories like `incoming`
+* `UPLOAD_FORBIDDEN_EXTENSIONS` to control the extension blacklist
+* `UPLOAD_SECURITY_HEADERS` to override or extend HTTP security headers
+
+A sample config file can be created by copying `cgi-bin/upload.conf.example` and adjusting values for your environment.
+
 Finally, you need to make a separate directory that will store the files. This needs to have read and write access for the web server. I set this up as:
 * `$base_dir = /var/www/html/files`
 * Then make a `/var/www/html/files/incoming` directory and make it world read- and write-able (`chmod 777 /var/www/html/files/incoming`)
