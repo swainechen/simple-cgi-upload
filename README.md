@@ -18,6 +18,6 @@ If you want to automatically clean up the files (after 30 days in my case), I se
 `find /var/www/html/files/incoming/ -type f -mtime +30 -print0 | xargs -0 rm -f`
 
 # Disclaimers
-There are lots of reasons why you should do something more complicated than this. This is easily susceptible to bad actors (say filling up your hard drive). This is inconvenient if you want to really transfer a lot of files. This has some limitations based on the perl CGI implmentation (such as for file size). etc. etc.
+There are lots of reasons why you should do something more complicated than this. This is easily susceptible to bad actors (say filling up your hard drive). This is inconvenient if you want to really transfer a lot of files. This has some limitations based on the perl CGI implementation (such as for file size). etc. etc.
 
 But if you want something simple, maybe you are ok with not dealing with these issues (as well as things I am not thinking of). This code is provided as-is, and I make no claims, warrants, or guarantees at all.
