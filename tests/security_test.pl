@@ -90,6 +90,14 @@ my @test_cases = (
     { file => 'test.tool', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.tool)' },
     { file => 'test.keychain', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.keychain)' },
     { file => 'valid.txt', dir => 'incoming', expected => 'Strict-Transport-Security: max-age=31536000; includeSubDomains; preload', desc => 'Security Header: HSTS with preload' },
+    { file => 'config.ini', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.ini)' },
+    { file => 'access.log', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.log)' },
+    { file => 'dump.sql', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.sql)' },
+    { file => 'data.sqlite', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.sqlite)' },
+    { file => 'app.db', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.db)' },
+    { file => 'config.yaml', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.yaml)' },
+    { file => 'config.yml', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.yml)' },
+    { file => 'app.properties', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.properties)' },
 );
 
 my $failed = 0;
