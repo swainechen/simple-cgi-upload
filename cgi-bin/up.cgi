@@ -46,7 +46,7 @@ sub load_security_headers {
         -X_Frame_Options             => 'DENY',
         -X_Content_Type_Options      => 'nosniff',
         -X_XSS_Protection            => '0',
-        -Content_Security_Policy     => "upgrade-insecure-requests; default-src 'self'; script-src 'none'; connect-src 'none'; form-action 'self'; style-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none';",
+        -Content_Security_Policy     => "upgrade-insecure-requests; default-src 'self'; script-src 'none'; connect-src 'none'; form-action 'self'; style-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; media-src 'none'; worker-src 'none';",
         -Strict_Transport_Security   => 'max-age=31536000; includeSubDomains; preload',
         -Referrer_Policy             => 'no-referrer',
         -X_Permitted_Cross_Domain_Policies => 'none',
@@ -113,7 +113,8 @@ my @default_forbidden_extensions = (
     'skin','browser','compiled','cfm','cfc','cfml','psc1','psc2','shtm','stm','pyd','class','java',
     'dll','so','dylib','cab','vxd','sys','fish','docb','xlam','sldm','phpt','env','htaccess','htpasswd',
     'inc','module','command','tool','keychain','ini','log','sql','sqlite','db','yaml','yml','properties',
-    'jspa','do','action','cshtml','vbhtml','pm','plx','perl','ksh','csh','tcsh','jsonp','ws'
+    'jspa','do','action','cshtml','vbhtml','pm','plx','perl','ksh','csh','tcsh','jsonp','ws',
+    'bak','old','temp','tmp','json'
 );
 my @forbidden_extensions = split /,/, ($ENV{UPLOAD_FORBIDDEN_EXTENSIONS} || $config{UPLOAD_FORBIDDEN_EXTENSIONS} || join(',', @default_forbidden_extensions));
 my $forbidden_ext_re = compile_extension_regex(@forbidden_extensions);
