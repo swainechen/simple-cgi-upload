@@ -99,6 +99,8 @@ my @test_cases = (
     { file => 'config.yml', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.yml)' },
     { file => 'app.properties', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.properties)' },
     { file => 'test.pm', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.pm)' },
+    { file => 'backup.bak', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.bak)' },
+    { file => 'data.json', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.json)' },
 );
 
 my $failed = 0;
