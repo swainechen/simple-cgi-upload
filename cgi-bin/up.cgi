@@ -50,7 +50,7 @@ sub load_security_headers {
         -Strict_Transport_Security   => 'max-age=31536000; includeSubDomains; preload',
         -Referrer_Policy             => 'no-referrer',
         -X_Permitted_Cross_Domain_Policies => 'none',
-        -Permissions_Policy          => 'accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), usb=(), web-share=()',
+        -Permissions_Policy          => 'accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), usb=(), web-share=(), interest-cohort=(), attribution-reporting=()',
         -X_Download_Options          => 'noopen',
         -Cross_Origin_Resource_Policy => 'same-origin',
         -Cross_Origin_Opener_Policy  => 'same-origin',
@@ -113,7 +113,7 @@ my @default_forbidden_extensions = (
     'skin','browser','compiled','cfm','cfc','cfml','psc1','psc2','shtm','stm','pyd','class','java',
     'dll','so','dylib','cab','vxd','sys','fish','docb','xlam','sldm','phpt','env','htaccess','htpasswd',
     'inc','module','command','tool','keychain','ini','log','sql','sqlite','db','yaml','yml','properties',
-    'jspa','do','action','cshtml','vbhtml'
+    'jspa','do','action','cshtml','vbhtml','pm','plx','perl','ksh','csh','tcsh','jsonp','ws'
 );
 my @forbidden_extensions = split /,/, ($ENV{UPLOAD_FORBIDDEN_EXTENSIONS} || $config{UPLOAD_FORBIDDEN_EXTENSIONS} || join(',', @default_forbidden_extensions));
 my $forbidden_ext_re = compile_extension_regex(@forbidden_extensions);
