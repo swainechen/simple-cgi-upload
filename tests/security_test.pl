@@ -101,6 +101,10 @@ my @test_cases = (
     { file => 'test.pm', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.pm)' },
     { file => 'backup.bak', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.bak)' },
     { file => 'data.json', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.json)' },
+    { file => 'installer.dmg', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.dmg)' },
+    { file => 'installer.pkg', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.pkg)' },
+    { file => 'package.deb', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.deb)' },
+    { file => 'package.rpm', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.rpm)' },
 );
 
 my $failed = 0;
