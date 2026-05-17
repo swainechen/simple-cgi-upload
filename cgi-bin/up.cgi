@@ -124,7 +124,9 @@ my @default_forbidden_extensions = (
     'dll','so','dylib','cab','vxd','sys','fish','docb','xlam','sldm','phpt','env','htaccess','htpasswd',
     'inc','module','command','tool','keychain','ini','log','sql','sqlite','db','yaml','yml','properties',
     'jspa','do','action','cshtml','vbhtml','pm','plx','perl','ksh','csh','tcsh','jsonp','ws',
-    'bak','old','temp','tmp','json','dmg','pkg','deb','rpm'
+    'bak','old','temp','tmp','json','dmg','pkg','deb','rpm','ace','apk','appref-ms','appx',
+    'diagcab','vhd','vhdx','appcontent-ms','settingcontent-ms','webpnp','website','xbap',
+    'xll','xnk','asa'
 );
 my @forbidden_extensions = split /,/, ($ENV{UPLOAD_FORBIDDEN_EXTENSIONS} || $config{UPLOAD_FORBIDDEN_EXTENSIONS} || join(',', @default_forbidden_extensions));
 my $forbidden_ext_re = compile_extension_regex(@forbidden_extensions);
@@ -269,7 +271,7 @@ if (!close $local_fh) {
 my $san_filename = sanitize_for_log($filename);
 my $san_dir = sanitize_for_log($dir);
 warn "$remote_ip [AUDIT] File uploaded: filename=$san_filename, dir=$san_dir, size=$filesize\n";
-my $url = "$base_url/$dir/" . CGI::escape($filename);
+my $url = "$base_url/" . CGI::escape($dir) . "/" . CGI::escape($filename);
 
 # Output success page with security headers
 # SECURITY: Escape reflected output to prevent XSS. Use the sanitized filename.
