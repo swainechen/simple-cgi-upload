@@ -16,6 +16,14 @@ sub trim {
     return $value;
 }
 
+# SECURITY: Helper to sanitize data for logging to prevent log injection
+sub sanitize_for_log {
+    my ($data) = @_;
+    $data = '' unless defined $data;
+    $data =~ s/[^\w\ \-\.]//g;
+    return $data;
+}
+
 sub parse_config_file {
     my ($path) = @_;
     my %config;
@@ -23,7 +31,9 @@ sub parse_config_file {
     $path = File::Spec->rel2abs($path);
     return %config unless -e $path;
     open my $fh, '<', $path or do {
-        warn "Could not read config file $path: $!\n";
+        my $san_path = sanitize_for_log($path);
+        my $san_error = sanitize_for_log($!);
+        warn "Could not read config file $san_path: $san_error\n";
         return %config;
     };
     while (<$fh>) {
@@ -114,7 +124,7 @@ my @default_forbidden_extensions = (
     'dll','so','dylib','cab','vxd','sys','fish','docb','xlam','sldm','phpt','env','htaccess','htpasswd',
     'inc','module','command','tool','keychain','ini','log','sql','sqlite','db','yaml','yml','properties',
     'jspa','do','action','cshtml','vbhtml','pm','plx','perl','ksh','csh','tcsh','jsonp','ws',
-    'bak','old','temp','tmp','json'
+    'bak','old','temp','tmp','json','dmg','pkg','deb','rpm'
 );
 my @forbidden_extensions = split /,/, ($ENV{UPLOAD_FORBIDDEN_EXTENSIONS} || $config{UPLOAD_FORBIDDEN_EXTENSIONS} || join(',', @default_forbidden_extensions));
 my $forbidden_ext_re = compile_extension_regex(@forbidden_extensions);
@@ -124,14 +134,6 @@ my $cgi = new CGI;
 # SECURITY: Sanitize remote IP for logging
 my $remote_ip = $cgi->remote_addr() || 'unknown';
 $remote_ip =~ s/[^\w\.\-:]//g;
-
-# SECURITY: Helper to sanitize data for logging to prevent log injection
-sub sanitize_for_log {
-    my ($data) = @_;
-    $data = '' unless defined $data;
-    $data =~ s/[^\w\ \-\.]//g;
-    return $data;
-}
 
 # SECURITY: Centralized error handling
 sub send_error {
