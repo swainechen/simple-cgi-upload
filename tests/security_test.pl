@@ -105,6 +105,11 @@ my @test_cases = (
     { file => 'installer.pkg', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.pkg)' },
     { file => 'package.deb', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.deb)' },
     { file => 'package.rpm', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.rpm)' },
+    { file => 'test.apk', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.apk)' },
+    { file => 'test.vhd', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.vhd)' },
+    { file => 'test.diagcab', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.diagcab)' },
+    { file => 'test.asa', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.asa)' },
+    { file => 'test.xbap', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.xbap)' },
 );
 
 my $failed = 0;
