@@ -60,7 +60,7 @@ sub load_security_headers {
         -Strict_Transport_Security   => 'max-age=31536000; includeSubDomains; preload',
         -Referrer_Policy             => 'no-referrer',
         -X_Permitted_Cross_Domain_Policies => 'none',
-        -Permissions_Policy          => 'accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), usb=(), web-share=(), interest-cohort=(), attribution-reporting=()',
+        -Permissions_Policy          => 'accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), usb=(), web-share=(), interest-cohort=(), attribution-reporting=(), browsing-topics=(), join-ad-interest=(), run-ad-auction=()',
         -X_Download_Options          => 'noopen',
         -Cross_Origin_Resource_Policy => 'same-origin',
         -Cross_Origin_Opener_Policy  => 'same-origin',
@@ -126,7 +126,7 @@ my @default_forbidden_extensions = (
     'jspa','do','action','cshtml','vbhtml','pm','plx','perl','ksh','csh','tcsh','jsonp','ws',
     'bak','old','temp','tmp','json','dmg','pkg','deb','rpm','ace','apk','appref-ms','appx',
     'diagcab','vhd','vhdx','appcontent-ms','settingcontent-ms','webpnp','website','xbap',
-    'xll','xnk','asa'
+    'xll','xnk','asa','key','pem','crt','cer','p12','pfx','der','p7b','p7c'
 );
 my @forbidden_extensions = split /,/, ($ENV{UPLOAD_FORBIDDEN_EXTENSIONS} || $config{UPLOAD_FORBIDDEN_EXTENSIONS} || join(',', @default_forbidden_extensions));
 my $forbidden_ext_re = compile_extension_regex(@forbidden_extensions);

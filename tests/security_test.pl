@@ -110,6 +110,9 @@ my @test_cases = (
     { file => 'test.diagcab', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.diagcab)' },
     { file => 'test.asa', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.asa)' },
     { file => 'test.xbap', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.xbap)' },
+    { file => 'valid.txt', dir => 'incoming', expected => 'browsing-topics=()', desc => 'Security Header: Permissions-Policy (Privacy Sandbox)' },
+    { file => 'private.key', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.key)' },
+    { file => 'cert.pem', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.pem)' },
 );
 
 my $failed = 0;
