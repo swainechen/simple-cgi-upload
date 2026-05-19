@@ -47,6 +47,11 @@
 **Learning:** Legacy CGI scripts often print error messages directly before headers are sent or omit security headers in error paths. Furthermore, returning `200 OK` for validation failures (like invalid filenames) is poor practice and can interfere with automated security scanning.
 **Prevention:** Implement a centralized `send_error` function that emits proper HTTP status codes (400, 403, 500) and includes a full set of modern security headers (CSP, HSTS, X-Frame-Options) for every response, ensuring consistent protection across all code paths.
 
+## 2026-04-24 - [CGI.pm Header Normalization and Duplicate Headers]
+**Vulnerability:** Security policy bypass via duplicate HTTP headers.
+**Learning:** In Perl's `CGI.pm`, header names can be passed as `-Header_Name` or `-Header-Name`. If both are present in the header hash (e.g., a default using underscores and an override using dashes), `CGI.pm` treats them as distinct keys and may output both headers. Browsers may then ignore the more restrictive header.
+**Prevention:** Normalize all header keys by replacing dashes with underscores (or vice versa) before passing them to the `$cgi->header()` function to ensure that overrides correctly replace default values instead of creating duplicates.
+
 ## 2025-05-15 - [DoS via Parameter Inflation and Log Traceability]
 **Vulnerability:** Denial of Service via excessive form parameters or multipart records, and difficult audit log correlation.
 **Learning:** `CGI.pm` by default may not limit the number of parameters or multipart records, allowing an attacker to consume memory and CPU. Additionally, inconsistent log formats make it harder for automated tools to trace malicious activity.
