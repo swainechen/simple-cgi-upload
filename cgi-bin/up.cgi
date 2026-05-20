@@ -75,6 +75,10 @@ sub load_security_headers {
         $name = trim($name);
         $value = trim($value);
         next unless length $name;
+        # SECURITY: Normalize header names by replacing dashes with underscores.
+        # CGI.pm treats -X_Frame_Options and "-X-Frame-Options" as different keys in the header hash,
+        # which can lead to duplicate headers in the response if both are present.
+        $name =~ s/-/_/g;
         $headers{"-$name"} = $value;
     }
     return %headers;
