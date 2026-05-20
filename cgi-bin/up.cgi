@@ -50,36 +50,60 @@ sub parse_config_file {
 
 sub load_security_headers {
     my ($config_value) = @_;
+    # Default headers use lowercase keys to match normalization
     my %headers = (
         -type                        => 'text/html',
         -charset                     => 'utf-8',
-        -X_Frame_Options             => 'DENY',
-        -X_Content_Type_Options      => 'nosniff',
-        -X_XSS_Protection            => '0',
-        -Content_Security_Policy     => "upgrade-insecure-requests; default-src 'self'; script-src 'none'; connect-src 'none'; form-action 'self'; style-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; media-src 'none'; worker-src 'none';",
-        -Strict_Transport_Security   => 'max-age=31536000; includeSubDomains; preload',
-        -Referrer_Policy             => 'no-referrer',
-        -X_Permitted_Cross_Domain_Policies => 'none',
-        -Permissions_Policy          => 'accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), usb=(), web-share=(), interest-cohort=(), attribution-reporting=(), browsing-topics=(), join-ad-interest=(), run-ad-auction=()',
-        -X_Download_Options          => 'noopen',
-        -Cross_Origin_Resource_Policy => 'same-origin',
-        -Cross_Origin_Opener_Policy  => 'same-origin',
-        -Cross_Origin_Embedder_Policy => 'require-corp',
-        -Cache_Control               => 'no-store, max-age=0',
+        -x_frame_options             => 'DENY',
+        -x_content_type_options      => 'nosniff',
+        -x_xss_protection            => '0',
+        -content_security_policy     => "upgrade-insecure-requests; default-src 'self'; script-src 'none'; connect-src 'none'; form-action 'self'; style-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; media-src 'none'; worker-src 'none';",
+        -strict_transport_security   => 'max-age=31536000; includeSubDomains; preload',
+        -referrer_policy             => 'no-referrer',
+        -x_permitted_cross_domain_policies => 'none',
+        -permissions_policy          => 'accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), usb=(), web-share=(), interest-cohort=(), attribution-reporting=(), browsing-topics=(), join-ad-interest=(), run-ad-auction=()',
+        -x_download_options          => 'noopen',
+        -cross_origin_resource_policy => 'same-origin',
+        -cross_origin_opener_policy  => 'same-origin',
+        -cross_origin_embedder_policy => 'require-corp',
+        -cache_control               => 'no-store, max-age=0',
     );
     return %headers unless defined $config_value && length $config_value;
+
+    # SECURITY: Whitelist of recognized security headers to distinguish between
+    # a new HTTP header and a continuation of a multi-part value (like CSP).
+    my %recognized_headers = map { $_ => 1 } (
+        'x_frame_options', 'x_content_type_options', 'x_xss_protection',
+        'content_security_policy', 'strict_transport_security', 'referrer_policy',
+        'x_permitted_cross_domain_policies', 'permissions_policy', 'x_download_options',
+        'cross_origin_resource_policy', 'cross_origin_opener_policy',
+        'cross_origin_embedder_policy', 'cache_control', 'content_type', 'charset'
+    );
+
+    my $last_key;
     for my $entry (split /\s*;\s*/, $config_value) {
         next unless length $entry;
-        my ($name, $value) = split /:/, $entry, 2;
-        next unless defined $value;
-        $name = trim($name);
-        $value = trim($value);
-        next unless length $name;
-        # SECURITY: Normalize header names by replacing dashes with underscores.
-        # CGI.pm treats -X_Frame_Options and "-X-Frame-Options" as different keys in the header hash,
-        # which can lead to duplicate headers in the response if both are present.
-        $name =~ s/-/_/g;
-        $headers{"-$name"} = $value;
+        # Check if entry starts with a header name (key: value)
+        if ($entry =~ /^\s*([\w\-]+)\s*:(.*)$/) {
+            my ($name, $value) = ($1, $2);
+            $name = trim($name);
+            $value = trim($value);
+
+            # Normalize for lookup
+            my $norm_name = lc($name);
+            $norm_name =~ s/-/_/g;
+
+            if ($recognized_headers{$norm_name}) {
+                # SECURITY: Normalize header names for CGI.pm
+                $last_key = "-$norm_name";
+                $headers{$last_key} = $value;
+                next;
+            }
+        }
+        # Otherwise append to the last header (e.g. CSP parts containing semicolons or colons)
+        if (defined $last_key) {
+            $headers{$last_key} .= "; $entry";
+        }
     }
     return %headers;
 }
