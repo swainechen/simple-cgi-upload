@@ -77,12 +77,14 @@ sub load_security_headers {
         'content_security_policy', 'strict_transport_security', 'referrer_policy',
         'x_permitted_cross_domain_policies', 'permissions_policy', 'x_download_options',
         'cross_origin_resource_policy', 'cross_origin_opener_policy',
-        'cross_origin_embedder_policy', 'cache_control', 'content_type', 'charset'
+        'cross_origin_embedder_policy', 'cache_control', 'content_type', 'charset', 'type'
     );
 
     my $last_key;
     for my $entry (split /\s*;\s*/, $config_value) {
         next unless length $entry;
+        $entry =~ s/[\r\n]//g; # SECURITY: Prevent header injection
+
         # Check if entry starts with a header name (key: value)
         if ($entry =~ /^\s*([\w\-]+)\s*:(.*)$/) {
             my ($name, $value) = ($1, $2);
@@ -95,10 +97,16 @@ sub load_security_headers {
 
             if ($recognized_headers{$norm_name}) {
                 # SECURITY: Normalize header names for CGI.pm
-                $last_key = "-$norm_name";
+                my $cgi_key = "-$norm_name";
+                $cgi_key = "-type" if $norm_name eq 'content_type';
+                $cgi_key = "-charset" if $norm_name eq 'charset';
+                $last_key = $cgi_key;
                 $headers{$last_key} = $value;
                 next;
             }
+            # SECURITY: If it looks like a header but is not recognized, do not append to last_key.
+            undef $last_key;
+            next;
         }
         # Otherwise append to the last header (e.g. CSP parts containing semicolons or colons)
         if (defined $last_key) {

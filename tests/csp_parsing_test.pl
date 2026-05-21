@@ -65,9 +65,9 @@ print "Running CSP parsing and header normalization tests...\n";
         print "[PASS] Unknown-Header was correctly ignored as a key.\n";
     }
 
-    if ($output =~ /^X-Frame-Options: DENY; Unknown-Header: Value/im) {
-        print "[PASS] Unknown-Header was correctly appended to preceding recognized header.\n";
+    if ($output =~ /^X-Frame-Options: DENY\r?$/im && $output !~ /Unknown-Header: Value/i) {
+        print "[PASS] Unknown-Header was correctly NOT appended to preceding recognized header.\n";
     } else {
-        print "[FAIL] Unknown-Header was not appended as expected.\n";
+        print "[FAIL] Unknown-Header was incorrectly appended or found in output.\n";
     }
 }
