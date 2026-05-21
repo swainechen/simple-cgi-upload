@@ -49,8 +49,13 @@
 
 ## 2026-04-24 - [CGI.pm Header Normalization and Duplicate Headers]
 **Vulnerability:** Security policy bypass via duplicate HTTP headers.
-**Learning:** In Perl's `CGI.pm`, header names can be passed as `-Header_Name` or `-Header-Name`. If both are present in the header hash (e.g., a default using underscores and an override using dashes), `CGI.pm` treats them as distinct keys and may output both headers. Browsers may then ignore the more restrictive header.
-**Prevention:** Normalize all header keys by replacing dashes with underscores (or vice versa) before passing them to the `$cgi->header()` function to ensure that overrides correctly replace default values instead of creating duplicates.
+**Learning:** In Perl's `CGI.pm`, header names can be passed as `-Header_Name` or `-Header-Name`. If both are present in the header hash (e.g., a default using underscores and an override using dashes), `CGI.pm` treats them as distinct keys and may output both headers. Browsers may then ignore the more restrictive header. Additionally, case sensitivity in keys can also lead to duplicates.
+**Prevention:** Normalize all header keys by converting to lowercase and replacing dashes with underscores before passing them to the `$cgi->header()` function to ensure that overrides correctly replace default values instead of creating duplicates.
+
+## 2025-05-20 - [Complex Security Header Parsing (CSP/Permissions-Policy)]
+**Vulnerability:** Broken or weakened security policies due to improper parsing of multi-part headers.
+**Learning:** Security headers like `Content-Security-Policy` often contain both semicolons and colons (e.g., in `connect-src https://example.com`). A naive parser that splits only on semicolons or incorrectly identifies colons as header-value separators will break these directives.
+**Prevention:** Use a whitelist of recognized security headers to distinguish between a new HTTP header and a continuation of a multi-part value. Ensure that subsequent parts of a multi-part header are correctly appended to the preceding recognized header key.
 
 ## 2025-05-15 - [DoS via Parameter Inflation and Log Traceability]
 **Vulnerability:** Denial of Service via excessive form parameters or multipart records, and difficult audit log correlation.
