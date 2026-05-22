@@ -9,6 +9,12 @@ use Fcntl qw(:DEFAULT O_NOFOLLOW);
 use FindBin qw($Bin);
 use CGI;
 
+# SECURITY: Pre-load variables to avoid "used only once" warnings
+$CGI::POST_MAX = $CGI::POST_MAX;
+$CGI::MAX_PARAMS = $CGI::MAX_PARAMS;
+$CGI::MAX_MULTIPART_RECORDS = $CGI::MAX_MULTIPART_RECORDS;
+$CGI::LIST_CONTEXT_WARN = $CGI::LIST_CONTEXT_WARN;
+
 sub trim {
     my ($value) = @_;
     return '' unless defined $value;
@@ -66,7 +72,8 @@ sub load_security_headers {
         -cross_origin_resource_policy => 'same-origin',
         -cross_origin_opener_policy  => 'same-origin',
         -cross_origin_embedder_policy => 'require-corp',
-        -cache_control               => 'no-store, max-age=0',
+        -cache_control               => 'no-store, no-cache, must-revalidate, max-age=0',
+        -x_robots_tag                => 'noindex, nofollow',
     );
     return %headers unless defined $config_value && length $config_value;
 
@@ -77,7 +84,8 @@ sub load_security_headers {
         'content_security_policy', 'strict_transport_security', 'referrer_policy',
         'x_permitted_cross_domain_policies', 'permissions_policy', 'x_download_options',
         'cross_origin_resource_policy', 'cross_origin_opener_policy',
-        'cross_origin_embedder_policy', 'cache_control', 'content_type', 'charset', 'type'
+        'cross_origin_embedder_policy', 'cache_control', 'content_type', 'charset', 'type',
+        'x_robots_tag'
     );
 
     my $last_key;
@@ -143,8 +151,10 @@ my $base_url = $ENV{UPLOAD_BASE_URL} || $config{UPLOAD_BASE_URL} || "http://serv
 # SECURITY: Limit upload size to prevent DoS; configurable via environment or config file
 $CGI::POST_MAX = $ENV{CGI_POST_MAX_TEST} || $ENV{UPLOAD_MAX_SIZE} || $config{UPLOAD_MAX_SIZE} || (1024 * 1024 * 100);
 # SECURITY: Limit parameters and multipart records to prevent DoS; configurable via environment or config file
-$CGI::MAX_PARAMS = $ENV{UPLOAD_MAX_PARAMS} || $config{UPLOAD_MAX_PARAMS} || 100;
+$CGI::MAX_PARAMS = $ENV{UPLOAD_MAX_PARAMS} || $config{UPLOAD_MAX_PARAMS} || 10;
 $CGI::MAX_MULTIPART_RECORDS = $ENV{UPLOAD_MAX_MULTIPART_RECORDS} || $config{UPLOAD_MAX_MULTIPART_RECORDS} || 100;
+# SECURITY: Enable warnings for list context in param() to prevent vulnerabilities
+$CGI::LIST_CONTEXT_WARN = 1;
 
 my %allowed_dirs = map { $_ => 1 } grep { length } map { trim($_) } split /,/, ($ENV{UPLOAD_ALLOWED_DIRS} || $config{UPLOAD_ALLOWED_DIRS} || 'incoming');
 
@@ -179,7 +189,8 @@ sub send_error {
     # SECURITY: Sanitize for logging to prevent log injection
     my $san_status = sanitize_for_log($status);
     my $san_message = sanitize_for_log($message);
-    warn "$remote_ip [ERROR] status=$san_status, message=$san_message\n";
+    my $san_ua = sanitize_for_log($cgi->user_agent());
+    warn "$remote_ip [ERROR] status=$san_status, message=$san_message, ua=$san_ua\n";
     # SECURITY: Sanitize status to prevent header injection
     $status =~ s/[\r\n]//g;
     print $cgi->header(%sec_headers, -status => $status);

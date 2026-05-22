@@ -62,7 +62,7 @@ my @test_cases = (
     { file => 'valid.txt', dir => 'incoming', expected => 'Cross-Origin-Resource-Policy: same-origin', desc => 'Security Header: Cross-Origin-Resource-Policy' },
     { file => 'valid.txt', dir => 'incoming', expected => 'Cross-Origin-Opener-Policy: same-origin', desc => 'Security Header: Cross-Origin-Opener-Policy' },
     { file => 'valid.txt', dir => 'incoming', expected => 'Cross-Origin-Embedder-Policy: require-corp', desc => 'Security Header: Cross-Origin-Embedder-Policy' },
-    { file => 'valid.txt', dir => 'incoming', expected => 'Cache-Control: no-store, max-age=0', desc => 'Security Header: Cache-Control' },
+    { file => 'valid.txt', dir => 'incoming', expected => 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0', desc => 'Security Header: Cache-Control' },
     { file => 'test.mht', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.mht)' },
     { file => 'test.psm1', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.psm1)' },
     { file => 'test.dll', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.dll)' },
