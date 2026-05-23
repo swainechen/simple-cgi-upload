@@ -172,7 +172,9 @@ my @default_forbidden_extensions = (
     'jspa','do','action','cshtml','vbhtml','pm','plx','perl','ksh','csh','tcsh','jsonp','ws',
     'bak','old','temp','tmp','json','dmg','pkg','deb','rpm','ace','apk','appref-ms','appx',
     'diagcab','vhd','vhdx','appcontent-ms','settingcontent-ms','webpnp','website','xbap',
-    'xll','xnk','asa','key','pem','crt','cer','p12','pfx','der','p7b','p7c'
+    'xll','xnk','asa','key','pem','crt','cer','p12','pfx','der','p7b','p7c',
+    'axd','xsd','xsl','htgroup','vb','xap','manifest','ts','tsx','jsx','sln','csproj',
+    'vbproj','plist','axml','pub','ipa'
 );
 my @forbidden_extensions = split /,/, ($ENV{UPLOAD_FORBIDDEN_EXTENSIONS} || $config{UPLOAD_FORBIDDEN_EXTENSIONS} || join(',', @default_forbidden_extensions));
 my $forbidden_ext_re = compile_extension_regex(@forbidden_extensions);
