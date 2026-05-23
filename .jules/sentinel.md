@@ -61,3 +61,8 @@
 **Vulnerability:** Denial of Service via excessive form parameters or multipart records, and difficult audit log correlation.
 **Learning:** `CGI.pm` by default may not limit the number of parameters or multipart records, allowing an attacker to consume memory and CPU. Additionally, inconsistent log formats make it harder for automated tools to trace malicious activity.
 **Prevention:** Set `$CGI::MAX_PARAMS` and `$CGI::MAX_MULTIPART_RECORDS` to sensible limits. Standardize security logs to start with the sanitized remote IP for consistent traceability and easier parsing by security monitoring tools.
+
+## 2025-05-21 - [CGI Hardening and Search Engine Exclusion]
+**Vulnerability:** Potential for parameter inflation attacks and unintentional indexing of private upload utility.
+**Learning:** Default CGI.pm settings may allow a high number of parameters, increasing DoS risk. Furthermore, without explicit instructions, search engines may index the application and its error pages, exposing the tool to a wider audience than intended.
+**Prevention:** Set `$CGI::MAX_PARAMS` to a strict minimum (e.g., 10) and enable `$CGI::LIST_CONTEXT_WARN` to catch unsafe parameter handling. Always include `X-Robots-Tag: noindex, nofollow` in default security headers for private utilities.
