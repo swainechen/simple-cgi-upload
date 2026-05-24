@@ -113,6 +113,7 @@ my @test_cases = (
     { file => 'valid.txt', dir => 'incoming', expected => 'browsing-topics=()', desc => 'Security Header: Permissions-Policy (Privacy Sandbox)' },
     { file => 'private.key', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.key)' },
     { file => 'cert.pem', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.pem)' },
+    { file => 'test.axd', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.axd)' },
 );
 
 my $failed = 0;
