@@ -35,7 +35,8 @@ sub parse_config_file {
     my %config;
     return %config unless defined $path;
     $path = File::Spec->rel2abs($path);
-    return %config unless -e $path;
+    # SECURITY: Ensure it's a regular file and not excessively large (max 64KB) to prevent DoS.
+    return %config unless -f $path && -s $path < 65536;
     open my $fh, '<', $path or do {
         my $san_path = sanitize_for_log($path);
         my $san_error = sanitize_for_log($!);
@@ -148,6 +149,14 @@ my $base_dir = $ENV{UPLOAD_BASE_DIR} || $config{UPLOAD_BASE_DIR} || "/var/www/ht
 # $base_url is the URL that you would use to access $base_dir from a web browser
 my $base_url = $ENV{UPLOAD_BASE_URL} || $config{UPLOAD_BASE_URL} || "http://server/files";
 
+# SECURITY: Basic validation for base_url and base_dir
+if (!$base_dir || $base_dir !~ m|^/|) {
+    warn "SECURITY: Invalid UPLOAD_BASE_DIR configuration\n";
+}
+if (!$base_url || $base_url !~ m!^(?:https?://|/)!) {
+    warn "SECURITY: Invalid UPLOAD_BASE_URL configuration\n";
+}
+
 # SECURITY: Limit upload size to prevent DoS; configurable via environment or config file
 $CGI::POST_MAX = $ENV{CGI_POST_MAX_TEST} || $ENV{UPLOAD_MAX_SIZE} || $config{UPLOAD_MAX_SIZE} || (1024 * 1024 * 100);
 # SECURITY: Limit parameters and multipart records to prevent DoS; configurable via environment or config file
@@ -174,7 +183,8 @@ my @default_forbidden_extensions = (
     'diagcab','vhd','vhdx','appcontent-ms','settingcontent-ms','webpnp','website','xbap',
     'xll','xnk','asa','key','pem','crt','cer','p12','pfx','der','p7b','p7c',
     'axd','xsd','xsl','htgroup','vb','xap','manifest','ts','tsx','jsx','sln','csproj',
-    'vbproj','plist','axml','pub','ipa'
+    'vbproj','plist','axml','pub','ipa','msix(?:bundle)?','appxbundle','crx','xpi',
+    'snap','flatpak','appimage','application-xml','oxt'
 );
 my @forbidden_extensions = split /,/, ($ENV{UPLOAD_FORBIDDEN_EXTENSIONS} || $config{UPLOAD_FORBIDDEN_EXTENSIONS} || join(',', @default_forbidden_extensions));
 my $forbidden_ext_re = compile_extension_regex(@forbidden_extensions);
@@ -192,7 +202,8 @@ sub send_error {
     my $san_status = sanitize_for_log($status);
     my $san_message = sanitize_for_log($message);
     my $san_ua = sanitize_for_log($cgi->user_agent());
-    warn "$remote_ip [ERROR] status=$san_status, message=$san_message, ua=$san_ua\n";
+    my $method = sanitize_for_log($cgi->request_method() || 'unknown');
+    warn "$remote_ip [ERROR] method=$method, status=$san_status, message=$san_message, ua=$san_ua\n";
     # SECURITY: Sanitize status to prevent header injection
     $status =~ s/[\r\n]//g;
     print $cgi->header(%sec_headers, -status => $status);
@@ -319,7 +330,8 @@ if (!close $local_fh) {
 # SECURITY: Audit log the upload event
 my $san_filename = sanitize_for_log($filename);
 my $san_dir = sanitize_for_log($dir);
-warn "$remote_ip [AUDIT] File uploaded: filename=$san_filename, dir=$san_dir, size=$filesize\n";
+my $san_ua = sanitize_for_log($cgi->user_agent());
+warn "$remote_ip [AUDIT] File uploaded: filename=$san_filename, dir=$san_dir, size=$filesize, ua=$san_ua\n";
 my $url = "$base_url/" . CGI::escape($dir) . "/" . CGI::escape($filename);
 
 # Output success page with security headers
