@@ -66,3 +66,8 @@
 **Vulnerability:** Potential for parameter inflation attacks and unintentional indexing of private upload utility.
 **Learning:** Default CGI.pm settings may allow a high number of parameters, increasing DoS risk. Furthermore, without explicit instructions, search engines may index the application and its error pages, exposing the tool to a wider audience than intended.
 **Prevention:** Set `$CGI::MAX_PARAMS` to a strict minimum (e.g., 10) and enable `$CGI::LIST_CONTEXT_WARN` to catch unsafe parameter handling. Always include `X-Robots-Tag: noindex, nofollow` in default security headers for private utilities.
+
+## 2025-01-24 - [Fatal Permission Enforcement in Shared Directories]
+**Vulnerability:** Insecure file permissions in shared upload directories.
+**Learning:** In a world-writable directory (like `777` suggested for `incoming`), failing to fatalize `chmod` allows attackers to pre-create files with loose permissions (e.g., `0666`). Even if the web server overwrites the content, it cannot tighten permissions if it doesn't own the file, leaving uploads readable by others.
+**Prevention:** Always make `chmod` failures fatal when enforcing security policies on uploaded files. Ensure the partial or insecurely-permissioned file is removed before returning an error.

@@ -144,50 +144,14 @@ sub compile_extension_regex {
 my %config = parse_config_file($ENV{UPLOAD_CONFIG_FILE} || File::Spec->catfile($Bin, 'upload.conf'));
 my %sec_headers = load_security_headers($ENV{UPLOAD_SECURITY_HEADERS} || $config{UPLOAD_SECURITY_HEADERS});
 
-# $base_dir is an actual path on your local file system that's accessible to the html server
-my $base_dir = $ENV{UPLOAD_BASE_DIR} || $config{UPLOAD_BASE_DIR} || "/var/www/html/files";
-# $base_url is the URL that you would use to access $base_dir from a web browser
-my $base_url = $ENV{UPLOAD_BASE_URL} || $config{UPLOAD_BASE_URL} || "http://server/files";
-
-# SECURITY: Basic validation for base_url and base_dir
-if (!$base_dir || $base_dir !~ m|^/|) {
-    warn "SECURITY: Invalid UPLOAD_BASE_DIR configuration\n";
-}
-if (!$base_url || $base_url !~ m!^(?:https?://|/)!) {
-    warn "SECURITY: Invalid UPLOAD_BASE_URL configuration\n";
-}
-
 # SECURITY: Limit upload size to prevent DoS; configurable via environment or config file
+# Must be set BEFORE creating the CGI object.
 $CGI::POST_MAX = $ENV{CGI_POST_MAX_TEST} || $ENV{UPLOAD_MAX_SIZE} || $config{UPLOAD_MAX_SIZE} || (1024 * 1024 * 100);
 # SECURITY: Limit parameters and multipart records to prevent DoS; configurable via environment or config file
 $CGI::MAX_PARAMS = $ENV{UPLOAD_MAX_PARAMS} || $config{UPLOAD_MAX_PARAMS} || 10;
 $CGI::MAX_MULTIPART_RECORDS = $ENV{UPLOAD_MAX_MULTIPART_RECORDS} || $config{UPLOAD_MAX_MULTIPART_RECORDS} || 100;
 # SECURITY: Enable warnings for list context in param() to prevent vulnerabilities
 $CGI::LIST_CONTEXT_WARN = 1;
-
-my %allowed_dirs = map { $_ => 1 } grep { length } map { trim($_) } split /,/, ($ENV{UPLOAD_ALLOWED_DIRS} || $config{UPLOAD_ALLOWED_DIRS} || 'incoming');
-
-my @default_forbidden_extensions = (
-    'pl','cgi','php\d*','phps','pht','phar','py','pyw','pyc','pyo','sh','bash','zsh',
-    'rb','rbw','lua','tcl','exe','bat','cmd','cpl','iso','ins','isp','job','inf','scf',
-    'html?','js','mjs','shtml','phtml','phtm','svg','svgz','asp[x]?','jspx?','asmx','ashx','svc',
-    'vbs','ps\d+(?:xml)?','psm1','psd1','wasm','xhtml','conf','config','jar','war','ear','swf','hta',
-    'scr','com','msi','vbe','jse','wsf','wsh','lnk','reg','jnlp','pif','desktop','url','application',
-    'gadget','msu','msp','docm','dotm','xlsm','xltm','pptm','potm','ppsm','xml','cjs','mhtml','mht',
-    'vba','hlp','chm','ade','adp','mde','msc','mst','sct','shb','shs','wsc','asax','ascx','master',
-    'skin','browser','compiled','cfm','cfc','cfml','psc1','psc2','shtm','stm','pyd','class','java',
-    'dll','so','dylib','cab','vxd','sys','fish','docb','xlam','sldm','phpt','env','htaccess','htpasswd',
-    'inc','module','command','tool','keychain','ini','log','sql','sqlite','db','yaml','yml','properties',
-    'jspa','do','action','cshtml','vbhtml','pm','plx','perl','ksh','csh','tcsh','jsonp','ws',
-    'bak','old','temp','tmp','json','dmg','pkg','deb','rpm','ace','apk','appref-ms','appx',
-    'diagcab','vhd','vhdx','appcontent-ms','settingcontent-ms','webpnp','website','xbap',
-    'xll','xnk','asa','key','pem','crt','cer','p12','pfx','der','p7b','p7c',
-    'axd','xsd','xsl','htgroup','vb','xap','manifest','ts','tsx','jsx','sln','csproj',
-    'vbproj','plist','axml','pub','ipa','msix(?:bundle)?','appxbundle','crx','xpi',
-    'snap','flatpak','appimage','application-xml','oxt'
-);
-my @forbidden_extensions = split /,/, ($ENV{UPLOAD_FORBIDDEN_EXTENSIONS} || $config{UPLOAD_FORBIDDEN_EXTENSIONS} || join(',', @default_forbidden_extensions));
-my $forbidden_ext_re = compile_extension_regex(@forbidden_extensions);
 
 my $cgi = new CGI;
 
@@ -224,6 +188,43 @@ sub send_error {
 EOF
     exit;
 }
+
+# $base_dir is an actual path on your local file system that's accessible to the html server
+my $base_dir = $ENV{UPLOAD_BASE_DIR} || $config{UPLOAD_BASE_DIR} || "/var/www/html/files";
+# $base_url is the URL that you would use to access $base_dir from a web browser
+my $base_url = $ENV{UPLOAD_BASE_URL} || $config{UPLOAD_BASE_URL} || "http://server/files";
+
+# SECURITY: Basic validation for base_url and base_dir. Fail early if misconfigured.
+if (!$base_dir || $base_dir !~ m|^/|) {
+    send_error("500 Internal Server Error", "Invalid UPLOAD_BASE_DIR configuration");
+}
+if (!$base_url || $base_url !~ m!^(?:https?://|/)!) {
+    send_error("500 Internal Server Error", "Invalid UPLOAD_BASE_URL configuration");
+}
+
+my %allowed_dirs = map { $_ => 1 } grep { length } map { trim($_) } split /,/, ($ENV{UPLOAD_ALLOWED_DIRS} || $config{UPLOAD_ALLOWED_DIRS} || 'incoming');
+
+my @default_forbidden_extensions = (
+    'pl','cgi','php\d*','phps','pht','phar','py','pyw','pyc','pyo','sh','bash','zsh',
+    'rb','rbw','lua','tcl','exe','bat','cmd','cpl','iso','ins','isp','job','inf','scf',
+    'html?','js','mjs','shtml','phtml','phtm','svg','svgz','asp[x]?','jspx?','asmx','ashx','svc',
+    'vbs','ps\d+(?:xml)?','psm1','psd1','wasm','xhtml','conf','config','jar','war','ear','swf','hta',
+    'scr','com','msi','vbe','jse','wsf','wsh','lnk','reg','jnlp','pif','desktop','url','application',
+    'gadget','msu','msp','docm','dotm','xlsm','xltm','pptm','potm','ppsm','xml','cjs','mhtml','mht',
+    'vba','hlp','chm','ade','adp','mde','msc','mst','sct','shb','shs','wsc','asax','ascx','master',
+    'skin','browser','compiled','cfm','cfc','cfml','psc1','psc2','shtm','stm','pyd','class','java',
+    'dll','so','dylib','cab','vxd','sys','fish','docb','xlam','sldm','phpt','env','htaccess','htpasswd',
+    'inc','module','command','tool','keychain','ini','log','sql','sqlite','db','yaml','yml','properties',
+    'jspa','do','action','cshtml','vbhtml','pm','plx','perl','ksh','csh','tcsh','jsonp','ws',
+    'bak','old','temp','tmp','json','dmg','pkg','deb','rpm','ace','apk','appref-ms','appx',
+    'diagcab','vhd','vhdx','appcontent-ms','settingcontent-ms','webpnp','website','xbap',
+    'xll','xnk','asa','key','pem','crt','cer','p12','pfx','der','p7b','p7c',
+    'axd','xsd','xsl','htgroup','vb','xap','manifest','ts','tsx','jsx','sln','csproj',
+    'vbproj','plist','axml','pub','ipa','msix(?:bundle)?','appxbundle','crx','xpi',
+    'snap','flatpak','appimage','application-xml','oxt'
+);
+my @forbidden_extensions = split /,/, ($ENV{UPLOAD_FORBIDDEN_EXTENSIONS} || $config{UPLOAD_FORBIDDEN_EXTENSIONS} || join(',', @default_forbidden_extensions));
+my $forbidden_ext_re = compile_extension_regex(@forbidden_extensions);
 
 # SECURITY: Handle upload errors (like exceeding POST_MAX)
 if (my $error = $cgi->cgi_error) {
@@ -291,10 +292,14 @@ sysopen (my $local_fh, $upload_path, $flags, 0644) or do {
     send_error("500 Internal Server Error", "Upload failed: Internal server error");
 };
 # SECURITY: Explicitly chmod to ensure strict permissions (0644) even if overwriting an existing file with loose permissions.
+# This is fatal because failing to enforce permissions in a shared directory is a security risk.
 chmod(0644, $local_fh) or do {
     my $san_upload_path = sanitize_for_log($upload_path);
     my $san_error = sanitize_for_log($!);
     warn "$remote_ip [ERROR] chmod failed for $san_upload_path: $san_error\n";
+    close $local_fh;
+    unlink $upload_path;
+    send_error("500 Internal Server Error", "Internal server error");
 };
 binmode $local_fh;
 my $buffer;
