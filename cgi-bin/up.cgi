@@ -7,6 +7,7 @@ use File::Basename qw(basename fileparse_set_fstype);
 use File::Spec;
 use Fcntl qw(:DEFAULT O_NOFOLLOW);
 use FindBin qw($Bin);
+use Digest::SHA;
 use CGI;
 
 # SECURITY: Pre-load variables to avoid "used only once" warnings
@@ -180,7 +181,8 @@ sub send_error {
     # SECURITY: Sanitize for logging to prevent log injection
     my $san_status = sanitize_for_log($status);
     my $san_message = sanitize_for_log($message);
-    my $san_ua = sanitize_for_log($cgi->user_agent());
+    my $raw_ua = $cgi->user_agent() || '';
+    my $san_ua = sanitize_for_log(substr($raw_ua, 0, 255));
     my $method = sanitize_for_log($cgi->request_method() || 'unknown');
     warn "$remote_ip [ERROR] method=$method, status=$san_status, message=$san_message, ua=$san_ua\n";
     # SECURITY: Sanitize status to prevent header injection
@@ -317,11 +319,13 @@ chmod(0644, $local_fh) or do {
     send_error("500 Internal Server Error", "Internal server error");
 };
 binmode $local_fh;
+my $sha = Digest::SHA->new(256);
 my $buffer;
 my $bytes_read;
 my $filesize = 0;
 while ($bytes_read = read($upload_fh, $buffer, 4096)) {
     $filesize += $bytes_read;
+    $sha->add($buffer);
     if (!print $local_fh $buffer) {
         my $san_upload_path = sanitize_for_log($upload_path);
         my $san_error = sanitize_for_log($!);
@@ -347,11 +351,14 @@ if (!close $local_fh) {
     send_error("500 Internal Server Error", "Internal server error");
 }
 
+my $digest = $sha->hexdigest;
+
 # SECURITY: Audit log the upload event
 my $san_filename = sanitize_for_log($filename);
 my $san_dir = sanitize_for_log($dir);
-my $san_ua = sanitize_for_log($cgi->user_agent());
-warn "$remote_ip [AUDIT] File uploaded: filename=$san_filename, dir=$san_dir, size=$filesize, ua=$san_ua\n";
+my $raw_ua = $cgi->user_agent() || '';
+my $san_ua = sanitize_for_log(substr($raw_ua, 0, 255));
+warn "$remote_ip [AUDIT] File uploaded: filename=$san_filename, dir=$san_dir, size=$filesize, digest=$digest, ua=$san_ua\n";
 my $url = "$base_url/" . CGI::escape($dir) . "/" . CGI::escape($filename);
 
 # Output success page with security headers
@@ -359,6 +366,7 @@ my $url = "$base_url/" . CGI::escape($dir) . "/" . CGI::escape($filename);
 my $esc_filename = $cgi->escapeHTML($filename);
 my $esc_url = $cgi->escapeHTML($url);
 my $esc_upload_url = $cgi->escapeHTML("$base_url/upload.html");
+my $esc_digest = $cgi->escapeHTML($digest);
 print $cgi->header(%sec_headers);
 print <<EOF;
 <!DOCTYPE html>
@@ -369,6 +377,7 @@ print <<EOF;
 </head>
 <body>
 <p><b>$esc_filename ($filesize bytes)</b> has been successfully uploaded...</p>
+<p>SHA-256: <code>$esc_digest</code></p>
 <p>The publicly accessible link to this file is:<br>
 <a href="$esc_url">$esc_url</a></p>
 <p>Go back to <a href="$esc_upload_url">upload another file</a></p>
