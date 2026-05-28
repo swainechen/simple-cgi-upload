@@ -89,6 +89,15 @@ sub load_security_headers {
         'x_robots_tag'
     );
 
+    # Headers that are known to contain colons in their directives (e.g., CSP's connect-src https://...)
+    # For these headers, we are more lenient and don't immediately undef $last_key if an entry
+    # looks like a header (name: value) but the name is not recognized.
+    my %multi_part_headers = (
+        '-content_security_policy' => 1,
+        '-permissions_policy'      => 1,
+        '-x_robots_tag'            => 1,
+    );
+
     my $last_key;
     for my $entry (split /\s*;\s*/, $config_value) {
         next unless length $entry;
@@ -113,11 +122,17 @@ sub load_security_headers {
                 $headers{$last_key} = $value;
                 next;
             }
-            # SECURITY: If it looks like a header but is not recognized, do not append to last_key.
+            # SECURITY: If it looks like a header but is not recognized, only append to last_key
+            # if the current header is known to contain colons in its directives.
+            if (defined $last_key && $multi_part_headers{$last_key}) {
+                $headers{$last_key} .= "; $entry";
+                next;
+            }
+            # Otherwise, stop appending to the previous header to prevent potential bypasses.
             undef $last_key;
             next;
         }
-        # Otherwise append to the last header (e.g. CSP parts containing semicolons or colons)
+        # Otherwise append to the last header (e.g. CSP parts containing semicolons but no colons)
         if (defined $last_key) {
             $headers{$last_key} .= "; $entry";
         }

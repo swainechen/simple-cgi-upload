@@ -67,6 +67,11 @@
 **Learning:** Default CGI.pm settings may allow a high number of parameters, increasing DoS risk. Furthermore, without explicit instructions, search engines may index the application and its error pages, exposing the tool to a wider audience than intended.
 **Prevention:** Set `$CGI::MAX_PARAMS` to a strict minimum (e.g., 10) and enable `$CGI::LIST_CONTEXT_WARN` to catch unsafe parameter handling. Always include `X-Robots-Tag: noindex, nofollow` in default security headers for private utilities.
 
+## 2025-05-22 - [Complex Security Header Parsing (CSP/Permissions-Policy)]
+**Vulnerability:** Broken or weakened security policies due to improper parsing of multi-part headers containing colons.
+**Learning:** Security headers like `Content-Security-Policy` and `X-Robots-Tag` often contain colons in their directives (e.g., `connect-src https://...`). A parser that interprets any "name: value" pattern as a new HTTP header might misidentify these directives as unknown headers and drop subsequent parts of the policy.
+**Prevention:** Implement a lenient parsing mode for recognized multi-part headers. If an entry looks like a header but the name is unrecognized, it should still be appended to the current header if that header is known to contain colons in its directives.
+
 ## 2025-01-24 - [Fatal Permission Enforcement in Shared Directories]
 **Vulnerability:** Insecure file permissions in shared upload directories.
 **Learning:** In a world-writable directory (like `777` suggested for `incoming`), failing to fatalize `chmod` allows attackers to pre-create files with loose permissions (e.g., `0666`). Even if the web server overwrites the content, it cannot tighten permissions if it doesn't own the file, leaving uploads readable by others.
