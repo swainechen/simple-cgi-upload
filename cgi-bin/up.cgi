@@ -206,6 +206,16 @@ EOF
     exit;
 }
 
+# SECURITY: Enforce POST method to prevent accidental script triggering and information disclosure.
+if (($cgi->request_method() || '') ne 'POST') {
+    send_error("405 Method Not Allowed", "This script only accepts POST requests.");
+}
+
+# SECURITY: Enforce multipart/form-data content type for file uploads.
+if (($cgi->content_type() || '') !~ m|^multipart/form-data|i) {
+    send_error("400 Bad Request", "Invalid Content-Type. Expected multipart/form-data.");
+}
+
 # $base_dir is an actual path on your local file system that's accessible to the html server
 my $base_dir = $ENV{UPLOAD_BASE_DIR} || $config{UPLOAD_BASE_DIR} || "/var/www/html/files";
 # $base_url is the URL that you would use to access $base_dir from a web browser
