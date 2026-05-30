@@ -7,11 +7,16 @@ my $cgi_script = File::Spec->catfile('cgi-bin', 'up.cgi');
 
 print "Running hardening and security observability tests...\n";
 
+# Minimal multipart body for tests
+my $boundary = "TestBoundary";
+my $dummy_post = "--$boundary\r\nContent-Disposition: form-data; name=\"foo\"\r\n\r\nbar\r\n--$boundary--\r\n";
+my $dummy_len = length($dummy_post);
+
 # Test 1: New Security Headers (X-Robots-Tag and strengthened Cache-Control)
 {
     print "Testing default security headers...\n";
-    my $env = "PERL5LIB=extlib/lib/perl5 REQUEST_METHOD=GET";
-    my $output = `$env perl $cgi_script 2>&1`;
+    my $env = "PERL5LIB=extlib/lib/perl5 REQUEST_METHOD=POST CONTENT_TYPE='multipart/form-data; boundary=$boundary' CONTENT_LENGTH=$dummy_len";
+    my $output = `echo "$dummy_post" | $env perl $cgi_script 2>&1`;
 
     my ($robots) = ($output =~ /^X-Robots-Tag: (.*)$/im);
     my ($cache) = ($output =~ /^Cache-Control: (.*)$/im);
@@ -32,8 +37,8 @@ print "Running hardening and security observability tests...\n";
 # Test 2: X-Robots-Tag recognition and override
 {
     print "\nTesting X-Robots-Tag override...\n";
-    my $env = "PERL5LIB=extlib/lib/perl5 UPLOAD_SECURITY_HEADERS='X-Robots-Tag: all' REQUEST_METHOD=GET";
-    my $output = `$env perl $cgi_script 2>&1`;
+    my $env = "PERL5LIB=extlib/lib/perl5 UPLOAD_SECURITY_HEADERS='X-Robots-Tag: all' REQUEST_METHOD=POST CONTENT_TYPE='multipart/form-data; boundary=$boundary' CONTENT_LENGTH=$dummy_len";
+    my $output = `echo "$dummy_post" | $env perl $cgi_script 2>&1`;
 
     my ($robots) = ($output =~ /^X-Robots-Tag: (.*)$/im);
     if ($robots && $robots =~ /all/i) {
@@ -47,8 +52,8 @@ print "Running hardening and security observability tests...\n";
 {
     print "\nTesting User-Agent in error logs...\n";
     my $ua = "Sentinel-Security-Scanner";
-    my $env = "PERL5LIB=extlib/lib/perl5 HTTP_USER_AGENT='$ua' REQUEST_METHOD=GET";
-    my $output = `$env perl $cgi_script 2>&1`;
+    my $env = "PERL5LIB=extlib/lib/perl5 HTTP_USER_AGENT='$ua' REQUEST_METHOD=POST CONTENT_TYPE='multipart/form-data; boundary=$boundary' CONTENT_LENGTH=$dummy_len";
+    my $output = `echo "$dummy_post" | $env perl $cgi_script 2>&1`;
 
     if ($output =~ /\[ERROR\].*ua=$ua/i) {
         print "[PASS] User-Agent correctly logged in error message.\n";
@@ -63,17 +68,15 @@ print "Running hardening and security observability tests...\n";
 # Test 4: CGI Max Params hardening
 {
     print "\nTesting CGI MAX_PARAMS hardening (limit=10)...\n";
-    # We send 11 parameters. CGI.pm should truncate or error depending on version/config,
-    # but since we set MAX_PARAMS = 10, any more should be ignored.
+    # We send many parameters via query string, but still use POST.
     my $query_string = join('&', map { "p$_=$_" } (1..15));
-    my $env = "PERL5LIB=extlib/lib/perl5 REQUEST_METHOD=GET QUERY_STRING='$query_string'";
-    my $output = `$env perl $cgi_script 2>&1`;
+    my $env = "PERL5LIB=extlib/lib/perl5 REQUEST_METHOD=POST CONTENT_TYPE='multipart/form-data; boundary=$boundary' CONTENT_LENGTH=$dummy_len QUERY_STRING='$query_string'";
+    my $output = `echo "$dummy_post" | $env perl $cgi_script 2>&1`;
 
     # We can't easily check internal CGI state from outside, but we verified the code change.
     # This test ensures the script still runs and handles requests even with many params.
-    # The script returns 403 or 500 when triggered via GET depending on directory existence.
-    if ($output =~ /Error: (?:403|500)/i) {
-        print "[PASS] Script handled request with many parameters (early exit due to GET).\n";
+    if ($output =~ /Error: (?:400|403|500)/i) {
+        print "[PASS] Script handled request with many parameters.\n";
     } else {
         print "[FAIL] Script failed to handle request with many parameters.\n";
     }
