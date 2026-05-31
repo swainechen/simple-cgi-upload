@@ -313,6 +313,24 @@ if ($filename =~ $forbidden_ext_re) {
     send_error("403 Forbidden", "Forbidden file extension");
 }
 
+# SECURITY: Limit the number of files in the target directory to prevent DoS (Disk Exhaustion).
+# Only enforced for new file uploads; overwriting existing files is permitted.
+my $max_files = $ENV{UPLOAD_MAX_FILES} || $config{UPLOAD_MAX_FILES} || 1000;
+my $upload_path = File::Spec->catfile($target_dir, $filename);
+if (! -e $upload_path) {
+    opendir(my $dh, $target_dir) or do {
+        my $san_target_dir = sanitize_for_log($target_dir);
+        my $san_error = sanitize_for_log($!);
+        warn "$remote_ip [ERROR] opendir failed for $san_target_dir: $san_error\n";
+        send_error("500 Internal Server Error", "Internal server error");
+    };
+    my $file_count = grep { -f File::Spec->catfile($target_dir, $_) } readdir($dh);
+    closedir($dh);
+    if ($file_count >= $max_files) {
+        send_error("507 Insufficient Storage", "Maximum file limit reached for this directory.");
+    }
+}
+
 # SECURITY: Verify filehandle before reading
 if (!defined $upload_fh) {
     send_error("400 Bad Request", "No file uploaded or filehandle is invalid");
@@ -321,7 +339,7 @@ if (!defined $upload_fh) {
 binmode $upload_fh;
 
 # SECURITY: 3-arg open and restricted permissions
-my $upload_path = File::Spec->catfile($base_dir, $dir, $filename);
+# $upload_path is already constructed above for the file count check.
 # SECURITY: Use sysopen with O_CREAT | O_TRUNC | O_NOFOLLOW to prevent symlink attacks while allowing secure overwrites.
 my $flags = O_WRONLY | O_CREAT | O_TRUNC;
 $flags |= O_NOFOLLOW if defined &O_NOFOLLOW;

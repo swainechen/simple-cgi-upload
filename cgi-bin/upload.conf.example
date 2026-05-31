@@ -15,6 +15,9 @@ UPLOAD_MAX_MULTIPART_RECORDS=100
 # Whitelisted target directories (comma-separated).
 UPLOAD_ALLOWED_DIRS=incoming
 
+# Maximum number of files allowed in a target directory to prevent DoS.
+UPLOAD_MAX_FILES=1000
+
 # Comma-separated forbidden extension patterns.
 # Patterns may be literal extensions or regex fragments.
 # Example: php,pl,py,sh,html,js,svg,xml,ini,log,db
