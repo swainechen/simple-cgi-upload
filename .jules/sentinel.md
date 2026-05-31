@@ -76,3 +76,8 @@
 **Vulnerability:** Insecure file permissions in shared upload directories.
 **Learning:** In a world-writable directory (like `777` suggested for `incoming`), failing to fatalize `chmod` allows attackers to pre-create files with loose permissions (e.g., `0666`). Even if the web server overwrites the content, it cannot tighten permissions if it doesn't own the file, leaving uploads readable by others.
 **Prevention:** Always make `chmod` failures fatal when enforcing security policies on uploaded files. Ensure the partial or insecurely-permissioned file is removed before returning an error.
+
+## 2026-04-25 - [DoS via Disk Exhaustion (File Count)]
+**Vulnerability:** Denial of Service (DoS) via unlimited file uploads.
+**Learning:** Even with individual file size limits, an attacker can still exhaust disk space or inodes by uploading a large number of small files.
+**Prevention:** Implement a per-directory maximum file count limit in the CGI script. Ensure the check distinguishes between new uploads and overwrites (using `! -e $path`) to avoid blocking legitimate updates while enforcing the overall storage policy.
