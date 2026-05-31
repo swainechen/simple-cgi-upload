@@ -16,6 +16,10 @@ $CGI::MAX_PARAMS = $CGI::MAX_PARAMS;
 $CGI::MAX_MULTIPART_RECORDS = $CGI::MAX_MULTIPART_RECORDS;
 $CGI::LIST_CONTEXT_WARN = $CGI::LIST_CONTEXT_WARN;
 
+# SECURITY: Sanitize remote IP for logging as early as possible.
+my $remote_ip = $ENV{REMOTE_ADDR} || 'unknown';
+$remote_ip =~ s/[^\w\.\-:]//g;
+
 sub trim {
     my ($value) = @_;
     return '' unless defined $value;
@@ -31,6 +35,43 @@ sub sanitize_for_log {
     return $data;
 }
 
+# GLOBAL OBJECTS (pre-initialized for use in early error handling)
+my $cgi;
+my %sec_headers;
+
+# SECURITY: Centralized error handling
+sub send_error {
+    my ($status, $message) = @_;
+    # SECURITY: Ensure we have a CGI object for headers if not yet initialized
+    $cgi ||= new CGI;
+    # SECURITY: Sanitize for logging to prevent log injection
+    my $san_status = sanitize_for_log($status);
+    my $san_message = sanitize_for_log($message);
+    my $raw_ua = $cgi->user_agent() || '';
+    my $san_ua = sanitize_for_log(substr($raw_ua, 0, 255));
+    my $method = sanitize_for_log($cgi->request_method() || 'unknown');
+    warn "$remote_ip [ERROR] method=$method, status=$san_status, message=$san_message, ua=$san_ua\n";
+    # SECURITY: Sanitize status to prevent header injection
+    $status =~ s/[\r\n]//g;
+    print $cgi->header(%sec_headers, -status => $status);
+    my $esc_message = $cgi->escapeHTML($message);
+    my $esc_status = $cgi->escapeHTML($status);
+    print <<EOF;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Error: $esc_status</title>
+</head>
+<body>
+    <h1>Error: $esc_status</h1>
+    <p>$esc_message</p>
+</body>
+</html>
+EOF
+    exit;
+}
+
 sub parse_config_file {
     my ($path) = @_;
     my %config;
@@ -41,7 +82,7 @@ sub parse_config_file {
     open my $fh, '<', $path or do {
         my $san_path = sanitize_for_log($path);
         my $san_error = sanitize_for_log($!);
-        warn "Could not read config file $san_path: $san_error\n";
+        warn "$remote_ip [ERROR] Could not read config file $san_path: $san_error\n";
         return %config;
     };
     while (<$fh>) {
@@ -157,8 +198,13 @@ sub compile_extension_regex {
     return qr/\.(?:@{[ join '|', @parts ] })(?:\.|\z)/i;
 }
 
+# SECURITY: Initialize security headers with defaults
+%sec_headers = load_security_headers();
+
 my %config = parse_config_file($ENV{UPLOAD_CONFIG_FILE} || File::Spec->catfile($Bin, 'upload.conf'));
-my %sec_headers = load_security_headers($ENV{UPLOAD_SECURITY_HEADERS} || $config{UPLOAD_SECURITY_HEADERS});
+
+# Update security headers if overrides exist in config or environment
+%sec_headers = load_security_headers($ENV{UPLOAD_SECURITY_HEADERS} || $config{UPLOAD_SECURITY_HEADERS});
 
 # SECURITY: Limit upload size to prevent DoS; configurable via environment or config file
 # Must be set BEFORE creating the CGI object.
@@ -169,42 +215,7 @@ $CGI::MAX_MULTIPART_RECORDS = $ENV{UPLOAD_MAX_MULTIPART_RECORDS} || $config{UPLO
 # SECURITY: Enable warnings for list context in param() to prevent vulnerabilities
 $CGI::LIST_CONTEXT_WARN = 1;
 
-my $cgi = new CGI;
-
-# SECURITY: Sanitize remote IP for logging
-my $remote_ip = $cgi->remote_addr() || 'unknown';
-$remote_ip =~ s/[^\w\.\-:]//g;
-
-# SECURITY: Centralized error handling
-sub send_error {
-    my ($status, $message) = @_;
-    # SECURITY: Sanitize for logging to prevent log injection
-    my $san_status = sanitize_for_log($status);
-    my $san_message = sanitize_for_log($message);
-    my $raw_ua = $cgi->user_agent() || '';
-    my $san_ua = sanitize_for_log(substr($raw_ua, 0, 255));
-    my $method = sanitize_for_log($cgi->request_method() || 'unknown');
-    warn "$remote_ip [ERROR] method=$method, status=$san_status, message=$san_message, ua=$san_ua\n";
-    # SECURITY: Sanitize status to prevent header injection
-    $status =~ s/[\r\n]//g;
-    print $cgi->header(%sec_headers, -status => $status);
-    my $esc_message = $cgi->escapeHTML($message);
-    my $esc_status = $cgi->escapeHTML($status);
-    print <<EOF;
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>Error: $esc_status</title>
-</head>
-<body>
-    <h1>Error: $esc_status</h1>
-    <p>$esc_message</p>
-</body>
-</html>
-EOF
-    exit;
-}
+$cgi = new CGI;
 
 # SECURITY: Enforce POST method to prevent accidental script triggering and information disclosure.
 if (($cgi->request_method() || '') ne 'POST') {
@@ -263,7 +274,9 @@ my $dir = $cgi->param('dir') || 'incoming';
 if (!exists $allowed_dirs{$dir}) {
     send_error("403 Forbidden", "Invalid or unauthorized directory");
 }
-if (! -d File::Spec->catdir($base_dir, $dir)) {
+my $target_dir = File::Spec->catdir($base_dir, $dir);
+# SECURITY: Ensure it's a directory and NOT a symlink to prevent traversal or redirection attacks.
+if (! -d $target_dir || -l $target_dir) {
     send_error("500 Internal Server Error", "Internal server error");
 }
 
