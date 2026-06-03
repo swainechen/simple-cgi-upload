@@ -324,7 +324,13 @@ if (! -e $upload_path) {
         warn "$remote_ip [ERROR] opendir failed for $san_target_dir: $san_error\n";
         send_error("500 Internal Server Error", "Internal server error");
     };
-    my $file_count = grep { -f File::Spec->catfile($target_dir, $_) } readdir($dh);
+    my $file_count = 0;
+    while (my $entry = readdir($dh)) {
+        if (-f File::Spec->catfile($target_dir, $entry)) {
+            $file_count++;
+            last if $file_count >= $max_files;
+        }
+    }
     closedir($dh);
     if ($file_count >= $max_files) {
         send_error("507 Insufficient Storage", "Maximum file limit reached for this directory.");
