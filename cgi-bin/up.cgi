@@ -328,8 +328,8 @@ if (! -e $upload_path) {
     while (my $entry = readdir($dh)) {
         if (-f File::Spec->catfile($target_dir, $entry)) {
             $file_count++;
-            last if $file_count >= $max_files;
         }
+        last if $file_count >= $max_files;
     }
     closedir($dh);
     if ($file_count >= $max_files) {
