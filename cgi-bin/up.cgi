@@ -61,6 +61,8 @@ sub send_error {
 <html lang="en">
 <head>
     <meta charset="utf-8">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="referrer" content="no-referrer">
     <title>Error: $esc_status</title>
 </head>
 <body>
@@ -270,6 +272,10 @@ if (my $error = $cgi->cgi_error) {
 }
 
 my $dir = $cgi->param('dir') || 'incoming';
+# SECURITY: Harden dir parameter with length limit and character whitelist for defense-in-depth.
+if ($dir !~ /^[a-zA-Z0-9_\-]{1,64}$/) {
+    send_error("400 Bad Request", "Invalid directory format");
+}
 # SECURITY: Strict whitelist for directory to prevent path traversal
 if (!exists $allowed_dirs{$dir}) {
     send_error("403 Forbidden", "Invalid or unauthorized directory");
@@ -420,6 +426,8 @@ print <<EOF;
 <html lang="en">
 <head>
     <meta charset="utf-8">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="referrer" content="no-referrer">
     <title>Upload Successful</title>
 </head>
 <body>
