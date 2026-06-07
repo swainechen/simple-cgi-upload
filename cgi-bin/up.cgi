@@ -5,7 +5,7 @@ use warnings;
 my $debug = 0;
 use File::Basename qw(basename fileparse_set_fstype);
 use File::Spec;
-use Fcntl qw(:DEFAULT O_NOFOLLOW);
+use Fcntl qw(:DEFAULT O_RDONLY O_NOFOLLOW);
 use FindBin qw($Bin);
 use Digest::SHA;
 use CGI;
@@ -81,13 +81,14 @@ sub parse_config_file {
     $path = File::Spec->rel2abs($path);
     # SECURITY: Ensure it's a regular file and not excessively large (max 64KB) to prevent DoS.
     return %config unless -f $path && -s $path < 65536;
-    open my $fh, '<', $path or do {
+    sysopen(my $fh, $path, O_RDONLY | (defined &O_NOFOLLOW ? O_NOFOLLOW : 0)) or do {
         my $san_path = sanitize_for_log($path);
         my $san_error = sanitize_for_log($!);
         warn "$remote_ip [ERROR] Could not read config file $san_path: $san_error\n";
         return %config;
     };
     while (<$fh>) {
+        next if /\0/; # SECURITY: Reject lines containing null bytes
         s/#.*//;
         s/^\s+|\s+$//g;
         next unless length;
