@@ -412,7 +412,8 @@ my $san_filename = sanitize_for_log($filename);
 my $san_dir = sanitize_for_log($dir);
 my $raw_ua = $cgi->user_agent() || '';
 my $san_ua = sanitize_for_log(substr($raw_ua, 0, 255));
-warn "$remote_ip [AUDIT] File uploaded: filename=$san_filename, dir=$san_dir, size=$filesize, digest=$digest, ua=$san_ua\n";
+my $method = sanitize_for_log($cgi->request_method() || 'unknown');
+warn "$remote_ip [AUDIT] File uploaded: method=$method, filename=$san_filename, dir=$san_dir, size=$filesize, digest=$digest, ua=$san_ua\n";
 my $url = "$base_url/" . CGI::escape($dir) . "/" . CGI::escape($filename);
 
 # Output success page with security headers
