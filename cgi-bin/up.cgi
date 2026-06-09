@@ -63,6 +63,7 @@ sub send_error {
     <meta charset="utf-8">
     <meta name="robots" content="noindex, nofollow">
     <meta name="referrer" content="no-referrer">
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests; default-src 'self'; script-src 'none'; connect-src 'none'; form-action 'self'; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; media-src 'none'; worker-src 'none';">
     <title>Error: $esc_status</title>
 </head>
 <body>
@@ -109,7 +110,7 @@ sub load_security_headers {
         -x_frame_options             => 'DENY',
         -x_content_type_options      => 'nosniff',
         -x_xss_protection            => '0',
-        -content_security_policy     => "upgrade-insecure-requests; default-src 'self'; script-src 'none'; connect-src 'none'; form-action 'self'; style-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; media-src 'none'; worker-src 'none';",
+        -content_security_policy     => "upgrade-insecure-requests; default-src 'self'; script-src 'none'; connect-src 'none'; form-action 'self'; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; media-src 'none'; worker-src 'none';",
         -strict_transport_security   => 'max-age=31536000; includeSubDomains; preload',
         -referrer_policy             => 'no-referrer',
         -x_permitted_cross_domain_policies => 'none',
@@ -436,14 +437,15 @@ print <<EOF;
     <meta charset="utf-8">
     <meta name="robots" content="noindex, nofollow">
     <meta name="referrer" content="no-referrer">
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests; default-src 'self'; script-src 'none'; connect-src 'none'; form-action 'self'; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; media-src 'none'; worker-src 'none';">
     <title>Upload Successful</title>
 </head>
 <body>
 <p><b>$esc_filename ($filesize bytes)</b> has been successfully uploaded...</p>
 <p>SHA-256: <code>$esc_digest</code></p>
 <p>The publicly accessible link to this file is:<br>
-<a href="$esc_url">$esc_url</a></p>
-<p>Go back to <a href="$esc_upload_url">upload another file</a></p>
+<a href="$esc_url" rel="noopener noreferrer">$esc_url</a></p>
+<p>Go back to <a href="$esc_upload_url" rel="noopener noreferrer">upload another file</a></p>
 </body>
 </html>
 EOF
