@@ -269,7 +269,8 @@ my @default_forbidden_extensions = (
     'xll','xnk','asa','key','pem','crt','cer','p12','pfx','der','p7b','p7c',
     'axd','xsd','xsl','htgroup','vb','xap','manifest','ts','tsx','jsx','sln','csproj',
     'vbproj','plist','axml','pub','ipa','msix(?:bundle)?','appxbundle','crx','xpi',
-    'snap','flatpak','appimage','application-xml','oxt'
+    'snap','flatpak','appimage','application-xml','oxt','scpt','scptd','applescript',
+    'prefPane','workflow','terminal'
 );
 my @forbidden_extensions = split /,/, ($ENV{UPLOAD_FORBIDDEN_EXTENSIONS} || $config{UPLOAD_FORBIDDEN_EXTENSIONS} || join(',', @default_forbidden_extensions));
 my $forbidden_ext_re = compile_extension_regex(@forbidden_extensions);

@@ -120,6 +120,7 @@ my @test_cases = (
     { file => 'private.key', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.key)' },
     { file => 'cert.pem', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.pem)' },
     { file => 'test.axd', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.axd)' },
+    { file => 'script.applescript', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.applescript)' },
 );
 
 my $failed = 0;
