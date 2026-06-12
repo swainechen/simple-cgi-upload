@@ -121,6 +121,10 @@ my @test_cases = (
     { file => 'cert.pem', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.pem)' },
     { file => 'test.axd', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.axd)' },
     { file => 'script.applescript', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.applescript)' },
+    { file => 'remote.rdp', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.rdp)' },
+    { file => 'disk.vmdk', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.vmdk)' },
+    { file => 'appliance.ova', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.ova)' },
+    { file => 'appliance.ovf', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.ovf)' },
 );
 
 my $failed = 0;
