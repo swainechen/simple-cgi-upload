@@ -56,6 +56,7 @@ sub send_error {
     print $cgi->header(%sec_headers, -status => $status);
     my $esc_message = $cgi->escapeHTML($message);
     my $esc_status = $cgi->escapeHTML($status);
+    my $meta_csp = $cgi->escapeHTML(get_meta_csp());
     print <<EOF;
 <!DOCTYPE html>
 <html lang="en">
@@ -63,7 +64,7 @@ sub send_error {
     <meta charset="utf-8">
     <meta name="robots" content="noindex, nofollow">
     <meta name="referrer" content="no-referrer">
-    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests; default-src 'self'; script-src 'none'; connect-src 'none'; form-action 'self'; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; media-src 'none'; worker-src 'none';">
+    <meta http-equiv="Content-Security-Policy" content="$meta_csp">
     <title>Error: $esc_status</title>
 </head>
 <body>
@@ -190,6 +191,14 @@ sub load_security_headers {
         }
     }
     return %headers;
+}
+
+# SECURITY: Helper to generate CSP for meta tags (strips frame-ancestors)
+sub get_meta_csp {
+    my $csp = $sec_headers{'-content_security_policy'} || '';
+    my @parts = split /\s*;\s*/, $csp;
+    my @meta_parts = grep { !/^frame-ancestors\b/i } @parts;
+    return join('; ', @meta_parts);
 }
 
 sub compile_extension_regex {
@@ -431,6 +440,7 @@ my $esc_filename = $cgi->escapeHTML($filename);
 my $esc_url = $cgi->escapeHTML($url);
 my $esc_upload_url = $cgi->escapeHTML("$base_url/upload.html");
 my $esc_digest = $cgi->escapeHTML($digest);
+my $meta_csp = $cgi->escapeHTML(get_meta_csp());
 print $cgi->header(%sec_headers);
 print <<EOF;
 <!DOCTYPE html>
@@ -439,7 +449,7 @@ print <<EOF;
     <meta charset="utf-8">
     <meta name="robots" content="noindex, nofollow">
     <meta name="referrer" content="no-referrer">
-    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests; default-src 'self'; script-src 'none'; connect-src 'none'; form-action 'self'; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; media-src 'none'; worker-src 'none';">
+    <meta http-equiv="Content-Security-Policy" content="$meta_csp">
     <title>Upload Successful</title>
 </head>
 <body>
