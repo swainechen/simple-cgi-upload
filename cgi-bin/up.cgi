@@ -10,6 +10,10 @@ use FindBin qw($Bin);
 use Digest::SHA;
 use CGI;
 
+# SECURITY: Ensure that all files (including temporary files) created by this script
+# have restrictive permissions (readable/writable only by the web server user).
+umask(0077);
+
 # SECURITY: Pre-load variables to avoid "used only once" warnings
 $CGI::POST_MAX = $CGI::POST_MAX;
 $CGI::MAX_PARAMS = $CGI::MAX_PARAMS;
@@ -225,12 +229,19 @@ my %config = parse_config_file($ENV{UPLOAD_CONFIG_FILE} || File::Spec->catfile($
 # Update security headers if overrides exist in config or environment
 %sec_headers = load_security_headers($ENV{UPLOAD_SECURITY_HEADERS} || $config{UPLOAD_SECURITY_HEADERS});
 
-# SECURITY: Limit upload size to prevent DoS; configurable via environment or config file
-# Must be set BEFORE creating the CGI object.
-$CGI::POST_MAX = $ENV{CGI_POST_MAX_TEST} || $ENV{UPLOAD_MAX_SIZE} || $config{UPLOAD_MAX_SIZE} || (1024 * 1024 * 100);
-# SECURITY: Limit parameters and multipart records to prevent DoS; configurable via environment or config file
-$CGI::MAX_PARAMS = $ENV{UPLOAD_MAX_PARAMS} || $config{UPLOAD_MAX_PARAMS} || 10;
-$CGI::MAX_MULTIPART_RECORDS = $ENV{UPLOAD_MAX_MULTIPART_RECORDS} || $config{UPLOAD_MAX_MULTIPART_RECORDS} || 100;
+# SECURITY: Limit upload size to prevent DoS; configurable via environment or config file.
+# Must be set BEFORE creating the CGI object. We use defined checks to allow '0' as a valid limit.
+$CGI::POST_MAX = defined $ENV{CGI_POST_MAX_TEST} ? $ENV{CGI_POST_MAX_TEST} :
+                 defined $ENV{UPLOAD_MAX_SIZE}    ? $ENV{UPLOAD_MAX_SIZE}    :
+                 defined $config{UPLOAD_MAX_SIZE} ? $config{UPLOAD_MAX_SIZE} :
+                 (1024 * 1024 * 100);
+# SECURITY: Limit parameters and multipart records to prevent DoS; configurable via environment or config file.
+$CGI::MAX_PARAMS = defined $ENV{UPLOAD_MAX_PARAMS} ? $ENV{UPLOAD_MAX_PARAMS} :
+                   defined $config{UPLOAD_MAX_PARAMS} ? $config{UPLOAD_MAX_PARAMS} :
+                   10;
+$CGI::MAX_MULTIPART_RECORDS = defined $ENV{UPLOAD_MAX_MULTIPART_RECORDS} ? $ENV{UPLOAD_MAX_MULTIPART_RECORDS} :
+                              defined $config{UPLOAD_MAX_MULTIPART_RECORDS} ? $config{UPLOAD_MAX_MULTIPART_RECORDS} :
+                              100;
 # SECURITY: Enable warnings for list context in param() to prevent vulnerabilities
 $CGI::LIST_CONTEXT_WARN = 1;
 
@@ -340,7 +351,9 @@ if ($filename =~ $forbidden_ext_re) {
 
 # SECURITY: Limit the number of files in the target directory to prevent DoS (Disk Exhaustion).
 # Only enforced for new file uploads; overwriting existing files is permitted.
-my $max_files = $ENV{UPLOAD_MAX_FILES} || $config{UPLOAD_MAX_FILES} || 1000;
+my $max_files = defined $ENV{UPLOAD_MAX_FILES} ? $ENV{UPLOAD_MAX_FILES} :
+                defined $config{UPLOAD_MAX_FILES} ? $config{UPLOAD_MAX_FILES} :
+                1000;
 my $upload_path = File::Spec->catfile($target_dir, $filename);
 if (! -e $upload_path) {
     opendir(my $dh, $target_dir) or do {
