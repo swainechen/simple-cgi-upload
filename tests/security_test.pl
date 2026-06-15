@@ -125,6 +125,10 @@ my @test_cases = (
     { file => 'disk.vmdk', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.vmdk)' },
     { file => 'appliance.ova', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.ova)' },
     { file => 'appliance.ovf', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.ovf)' },
+    { file => 'malicious.service', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.service)' },
+    { file => 'secrets.kdbx', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.kdbx)' },
+    { file => 'data.sqlite3', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.sqlite3)' },
+    { file => 'app.map', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.map)' },
 );
 
 my $failed = 0;
