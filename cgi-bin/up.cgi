@@ -291,7 +291,8 @@ my @default_forbidden_extensions = (
     'axd','xsd','xsl','htgroup','vb','xap','manifest','ts','tsx','jsx','sln','csproj',
     'vbproj','plist','axml','pub','ipa','msix(?:bundle)?','appxbundle','crx','xpi',
     'snap','flatpak','appimage','application-xml','oxt','scpt','scptd','applescript',
-    'prefPane','workflow','terminal'
+    'prefPane','workflow','terminal','map','webmanifest','search-ms','library-ms',
+    'service','timer','mount','target','path','socket','udl','pws','kdbx','sqlite3'
 );
 my @forbidden_extensions = split /,/, ($ENV{UPLOAD_FORBIDDEN_EXTENSIONS} || $config{UPLOAD_FORBIDDEN_EXTENSIONS} || join(',', @default_forbidden_extensions));
 my $forbidden_ext_re = compile_extension_regex(@forbidden_extensions);
