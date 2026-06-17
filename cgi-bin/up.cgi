@@ -5,7 +5,7 @@ use warnings;
 my $debug = 0;
 use File::Basename qw(basename fileparse_set_fstype);
 use File::Spec;
-use Fcntl qw(:DEFAULT O_RDONLY O_NOFOLLOW);
+use Fcntl qw(:DEFAULT O_RDONLY O_NOFOLLOW O_EXCL);
 use FindBin qw($Bin);
 use Digest::SHA;
 use CGI;
@@ -385,10 +385,27 @@ binmode $upload_fh;
 
 # SECURITY: 3-arg open and restricted permissions
 # $upload_path is already constructed above for the file count check.
-# SECURITY: Use sysopen with O_CREAT | O_TRUNC | O_NOFOLLOW to prevent symlink attacks while allowing secure overwrites.
-my $flags = O_WRONLY | O_CREAT | O_TRUNC;
+# SECURITY: Safely unlink existing regular files to prevent attacks on non-regular files (FIFOs, etc.)
+# and then use O_EXCL to ensure we create a new regular file.
+if (-e $upload_path) {
+    if (-l $upload_path || ! -f _) {
+        my $san_upload_path = sanitize_for_log($upload_path);
+        warn "$remote_ip [ERROR] Refusing to overwrite non-regular file or symlink: $san_upload_path\n";
+        send_error("403 Forbidden", "Invalid target file type");
+    }
+    if (!unlink($upload_path)) {
+        my $san_upload_path = sanitize_for_log($upload_path);
+        my $san_error = sanitize_for_log($!);
+        warn "$remote_ip [ERROR] Failed to unlink $san_upload_path: $san_error\n";
+        send_error("500 Internal Server Error", "Internal server error");
+    }
+}
+
+# SECURITY: Use sysopen with O_CREAT | O_EXCL | O_NOFOLLOW to prevent symlink and race-condition attacks.
+# Mode 0600 ensures the file is initially private to the web server.
+my $flags = O_WRONLY | O_CREAT | O_EXCL;
 $flags |= O_NOFOLLOW if defined &O_NOFOLLOW;
-sysopen (my $local_fh, $upload_path, $flags, 0644) or do {
+sysopen (my $local_fh, $upload_path, $flags, 0600) or do {
     my $san_upload_path = sanitize_for_log($upload_path);
     my $san_error = sanitize_for_log($!);
     warn "$remote_ip [ERROR] sysopen failed for $san_upload_path: $san_error\n";
