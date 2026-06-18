@@ -294,7 +294,13 @@ my @default_forbidden_extensions = (
     'prefPane','workflow','terminal','map','webmanifest','search-ms','library-ms',
     'service','timer','mount','target','path','socket','udl','pws','kdbx','sqlite3'
 );
-my @forbidden_extensions = split /,/, ($ENV{UPLOAD_FORBIDDEN_EXTENSIONS} || $config{UPLOAD_FORBIDDEN_EXTENSIONS} || join(',', @default_forbidden_extensions));
+# SECURITY: Merge configured forbidden extensions with the default blacklist.
+# This provides defense-in-depth by ensuring the core security blacklist
+# cannot be accidentally or maliciously disabled via configuration.
+my @forbidden_extensions = @default_forbidden_extensions;
+if (my $extra_exts = $ENV{UPLOAD_FORBIDDEN_EXTENSIONS} || $config{UPLOAD_FORBIDDEN_EXTENSIONS}) {
+    push @forbidden_extensions, split /,/, $extra_exts;
+}
 my $forbidden_ext_re = compile_extension_regex(@forbidden_extensions);
 
 # SECURITY: Handle upload errors (like exceeding POST_MAX)
