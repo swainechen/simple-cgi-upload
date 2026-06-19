@@ -18,6 +18,10 @@ UPLOAD_ALLOWED_DIRS=incoming
 # Maximum number of files allowed in a target directory to prevent DoS.
 UPLOAD_MAX_FILES=1000
 
+# Maximum total storage allowed in a target directory (in bytes) to prevent DoS.
+# Default is 1GB.
+UPLOAD_MAX_DIR_SIZE=1073741824
+
 # Comma-separated forbidden extension patterns.
 # Patterns may be literal extensions or regex fragments.
 # Example: php,pl,py,sh,html,js,svg,xml,ini,log,db

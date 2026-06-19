@@ -356,13 +356,21 @@ if ($filename =~ $forbidden_ext_re) {
     send_error("403 Forbidden", "Forbidden file extension");
 }
 
-# SECURITY: Limit the number of files in the target directory to prevent DoS (Disk Exhaustion).
-# Only enforced for new file uploads; overwriting existing files is permitted.
+# SECURITY: Limit the number of files and total size in the target directory to prevent DoS (Disk Exhaustion).
 my $max_files = defined $ENV{UPLOAD_MAX_FILES} ? $ENV{UPLOAD_MAX_FILES} :
                 defined $config{UPLOAD_MAX_FILES} ? $config{UPLOAD_MAX_FILES} :
                 1000;
+my $max_dir_size = defined $ENV{UPLOAD_MAX_DIR_SIZE} ? $ENV{UPLOAD_MAX_DIR_SIZE} :
+                   defined $config{UPLOAD_MAX_DIR_SIZE} ? $config{UPLOAD_MAX_DIR_SIZE} :
+                   (1024 * 1024 * 1024); # Default 1GB
+
 my $upload_path = File::Spec->catfile($target_dir, $filename);
-if (! -e $upload_path) {
+my $incoming_size = $ENV{CONTENT_LENGTH} || 0;
+my $is_new = ! -e $upload_path;
+my $existing_size = $is_new ? 0 : (-s $upload_path || 0);
+
+# Only perform the expensive directory scan if we are adding a new file or increasing the size of an existing one.
+if ($is_new || $incoming_size > $existing_size) {
     opendir(my $dh, $target_dir) or do {
         my $san_target_dir = sanitize_for_log($target_dir);
         my $san_error = sanitize_for_log($!);
@@ -370,15 +378,23 @@ if (! -e $upload_path) {
         send_error("500 Internal Server Error", "Internal server error");
     };
     my $file_count = 0;
+    my $total_size = 0;
     while (my $entry = readdir($dh)) {
         if (-f File::Spec->catfile($target_dir, $entry)) {
             $file_count++;
+            $total_size += -s _;
         }
-        last if $file_count >= $max_files;
+        # Stop early if ANY limit is already reached.
+        # For storage limit, we account for the net increase (incoming - existing).
+        last if ($is_new && $file_count >= $max_files) ||
+                ($total_size - $existing_size + $incoming_size > $max_dir_size);
     }
     closedir($dh);
-    if ($file_count >= $max_files) {
+    if ($is_new && $file_count >= $max_files) {
         send_error("507 Insufficient Storage", "Maximum file limit reached for this directory.");
+    }
+    if ($total_size - $existing_size + $incoming_size > $max_dir_size) {
+        send_error("507 Insufficient Storage", "Maximum storage limit reached for this directory.");
     }
 }
 
