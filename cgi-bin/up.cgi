@@ -14,11 +14,11 @@ use CGI;
 # have restrictive permissions (readable/writable only by the web server user).
 umask(0077);
 
-# SECURITY: Pre-load variables to avoid "used only once" warnings
-$CGI::POST_MAX = $CGI::POST_MAX;
-$CGI::MAX_PARAMS = $CGI::MAX_PARAMS;
-$CGI::MAX_MULTIPART_RECORDS = $CGI::MAX_MULTIPART_RECORDS;
-$CGI::LIST_CONTEXT_WARN = $CGI::LIST_CONTEXT_WARN;
+# SECURITY: Initialize CGI limits early to prevent DoS and other attacks.
+$CGI::POST_MAX = 1024 * 1024 * 100;
+$CGI::MAX_PARAMS = 10;
+$CGI::MAX_MULTIPART_RECORDS = 100;
+$CGI::LIST_CONTEXT_WARN = 1;
 
 # SECURITY: Sanitize remote IP for logging as early as possible.
 my $remote_ip = $ENV{REMOTE_ADDR} || 'unknown';
@@ -229,23 +229,27 @@ my %config = parse_config_file($ENV{UPLOAD_CONFIG_FILE} || File::Spec->catfile($
 # Update security headers if overrides exist in config or environment
 %sec_headers = load_security_headers($ENV{UPLOAD_SECURITY_HEADERS} || $config{UPLOAD_SECURITY_HEADERS});
 
-# SECURITY: Limit upload size to prevent DoS; configurable via environment or config file.
-# Must be set BEFORE creating the CGI object. We use defined checks to allow '0' as a valid limit.
+# SECURITY: Support dynamic limit overrides via configuration or environment variables.
+# These must be set before creating the CGI object to be effective.
 $CGI::POST_MAX = defined $ENV{CGI_POST_MAX_TEST} ? $ENV{CGI_POST_MAX_TEST} :
                  defined $ENV{UPLOAD_MAX_SIZE}    ? $ENV{UPLOAD_MAX_SIZE}    :
                  defined $config{UPLOAD_MAX_SIZE} ? $config{UPLOAD_MAX_SIZE} :
-                 (1024 * 1024 * 100);
-# SECURITY: Limit parameters and multipart records to prevent DoS; configurable via environment or config file.
+                 $CGI::POST_MAX;
 $CGI::MAX_PARAMS = defined $ENV{UPLOAD_MAX_PARAMS} ? $ENV{UPLOAD_MAX_PARAMS} :
                    defined $config{UPLOAD_MAX_PARAMS} ? $config{UPLOAD_MAX_PARAMS} :
-                   10;
+                   $CGI::MAX_PARAMS;
 $CGI::MAX_MULTIPART_RECORDS = defined $ENV{UPLOAD_MAX_MULTIPART_RECORDS} ? $ENV{UPLOAD_MAX_MULTIPART_RECORDS} :
                               defined $config{UPLOAD_MAX_MULTIPART_RECORDS} ? $config{UPLOAD_MAX_MULTIPART_RECORDS} :
-                              100;
-# SECURITY: Enable warnings for list context in param() to prevent vulnerabilities
-$CGI::LIST_CONTEXT_WARN = 1;
+                              $CGI::MAX_MULTIPART_RECORDS;
 
 $cgi = new CGI;
+
+# SECURITY: Global check for null bytes in all request parameters to prevent injection.
+for my $p ($cgi->multi_param) {
+    if (grep { /\0/ } $cgi->multi_param($p)) {
+        send_error("400 Bad Request", "Invalid input detected");
+    }
+}
 
 # SECURITY: Enforce POST method to prevent accidental script triggering and information disclosure.
 if (($cgi->request_method() || '') ne 'POST') {
