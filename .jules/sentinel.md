@@ -81,3 +81,8 @@
 **Vulnerability:** Denial of Service (DoS) via unlimited file uploads.
 **Learning:** Even with individual file size limits, an attacker can still exhaust disk space or inodes by uploading a large number of small files.
 **Prevention:** Implement a per-directory maximum file count limit in the CGI script. Ensure the check distinguishes between new uploads and overwrites (using `! -e $path`) to avoid blocking legitimate updates while enforcing the overall storage policy.
+
+## 2025-01-24 - [Symlink Attacks and TOCTOU Race Conditions]
+**Vulnerability:** Insecure file existence checks and race conditions during file upload.
+**Learning:** Standard file existence checks like `-e` follow symbolic links, which can be exploited to overwrite sensitive files if an attacker can pre-create a symlink. Furthermore, performing multiple separate checks (e.g., `-e`, `-l`, `-f`) on the same path introduces a Time-of-Check to Time-of-Use (TOCTOU) race condition where the file could be replaced between checks.
+**Prevention:** Use `lstat()` to check for file existence without following symbolic links. Immediately follow `lstat()` with checks using the special Perl filehandle `_` (e.g., `-l _`, `-f _`, `-s _`) to reuse the cached metadata from the `lstat` call, ensuring all subsequent validations are performed against the same file state and reducing system call overhead.

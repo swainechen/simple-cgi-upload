@@ -370,8 +370,8 @@ my $max_dir_size = defined $ENV{UPLOAD_MAX_DIR_SIZE} ? $ENV{UPLOAD_MAX_DIR_SIZE}
 
 my $upload_path = File::Spec->catfile($target_dir, $filename);
 my $incoming_size = $ENV{CONTENT_LENGTH} || 0;
-my $is_new = ! -e $upload_path;
-my $existing_size = $is_new ? 0 : (-s $upload_path || 0);
+my $is_new = ! lstat($upload_path);
+my $existing_size = $is_new ? 0 : (-s _ || 0);
 
 # Only perform the expensive directory scan if we are adding a new file or increasing the size of an existing one.
 if ($is_new || $incoming_size > $existing_size) {
@@ -413,8 +413,8 @@ binmode $upload_fh;
 # $upload_path is already constructed above for the file count check.
 # SECURITY: Safely unlink existing regular files to prevent attacks on non-regular files (FIFOs, etc.)
 # and then use O_EXCL to ensure we create a new regular file.
-if (-e $upload_path) {
-    if (-l $upload_path || ! -f _) {
+if (lstat($upload_path)) {
+    if (-l _ || ! -f _) {
         my $san_upload_path = sanitize_for_log($upload_path);
         warn "$remote_ip [ERROR] Refusing to overwrite non-regular file or symlink: $san_upload_path\n";
         send_error("403 Forbidden", "Invalid target file type");
