@@ -296,7 +296,9 @@ my @default_forbidden_extensions = (
     'vbproj','plist','axml','pub','ipa','msix(?:bundle)?','appxbundle','crx','xpi',
     'snap','flatpak','appimage','application-xml','oxt','scpt','scptd','applescript',
     'prefPane','workflow','terminal','map','webmanifest','search-ms','library-ms',
-    'service','timer','mount','target','path','socket','udl','pws','kdbx','sqlite3'
+    'service','timer','mount','target','path','socket','udl','pws','kdbx','sqlite3',
+    'accdb','mdb','msh','msh1','msh2','mshxml','msh1xml','msh2xml','slk','iqy',
+    'automount','device','swap','scope','slice'
 );
 # SECURITY: Merge configured forbidden extensions with the default blacklist.
 # This provides defense-in-depth by ensuring the core security blacklist
