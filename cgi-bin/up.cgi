@@ -93,6 +93,11 @@ sub parse_config_file {
         warn "$remote_ip [ERROR] Could not read config file $san_path: $san_error\n";
         return %config;
     };
+    # SECURITY: Re-verify filehandle refers to a regular file and check size again to prevent TOCTOU.
+    if (! -f $fh || -s $fh >= 65536) {
+        close $fh;
+        return %config;
+    }
     while (<$fh>) {
         next if /\0/; # SECURITY: Reject lines containing null bytes
         s/#.*//;
@@ -244,9 +249,9 @@ $CGI::MAX_MULTIPART_RECORDS = defined $ENV{UPLOAD_MAX_MULTIPART_RECORDS} ? $ENV{
 
 $cgi = new CGI;
 
-# SECURITY: Global check for null bytes in all request parameters to prevent injection.
+# SECURITY: Global check for null bytes in all request parameter names and values to prevent injection.
 for my $p ($cgi->multi_param) {
-    if (grep { /\0/ } $cgi->multi_param($p)) {
+    if ($p =~ /\0/ || grep { /\0/ } $cgi->multi_param($p)) {
         send_error("400 Bad Request", "Invalid input detected");
     }
 }
