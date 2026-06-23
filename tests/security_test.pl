@@ -129,6 +129,11 @@ my @test_cases = (
     { file => 'secrets.kdbx', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.kdbx)' },
     { file => 'data.sqlite3', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.sqlite3)' },
     { file => 'app.map', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.map)' },
+    { file => 'data.mdb', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.mdb)' },
+    { file => 'script.msh', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.msh)' },
+    { file => 'data.slk', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.slk)' },
+    { file => 'query.iqy', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.iqy)' },
+    { file => 'test.automount', dir => 'incoming', expected => 'Forbidden file extension', desc => 'Blacklisted extension (.automount)' },
 );
 
 my $failed = 0;
