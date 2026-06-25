@@ -217,13 +217,21 @@ sub compile_extension_regex {
         next unless defined $pattern;
         $pattern = trim($pattern);
         next unless length $pattern;
+        # If it looks like it might be a regex (contains special chars),
+        # try to compile it alone first to see if it's valid.
         if ($pattern =~ /[\\\^\$\.\|\?\*\+\(\)\[\]\{\}]/) {
-            push @parts, $pattern;
+            if (eval { qr/$pattern/; 1 }) {
+                push @parts, $pattern;
+            } else {
+                # Fallback to literal matching if regex is invalid
+                push @parts, quotemeta($pattern);
+            }
         } else {
             push @parts, quotemeta($pattern);
         }
     }
-    return qr/\.(?:@{[ join '|', @parts ] })(?:\.|\z)/i;
+    my $re_str = join '|', @parts;
+    return qr/\.(?:$re_str)(?:\.|\z)/i;
 }
 
 # SECURITY: Initialize security headers with defaults
