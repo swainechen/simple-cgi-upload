@@ -5,6 +5,7 @@ use warnings;
 my $debug = 0;
 use File::Basename qw(basename fileparse_set_fstype);
 use File::Spec;
+use File::Temp qw(tempfile);
 use Fcntl qw(:DEFAULT O_RDONLY O_NOFOLLOW O_EXCL);
 use FindBin qw($Bin);
 use Digest::SHA;
@@ -338,7 +339,8 @@ if (!exists $allowed_dirs{$dir}) {
 }
 my $target_dir = File::Spec->catdir($base_dir, $dir);
 # SECURITY: Ensure it's a directory and NOT a symlink to prevent traversal or redirection attacks.
-if (! -d $target_dir || -l $target_dir) {
+# Use lstat and _ to prevent TOCTOU race conditions.
+if (! lstat($target_dir) || ! -d _ || -l _) {
     send_error("500 Internal Server Error", "Internal server error");
 }
 
@@ -424,42 +426,26 @@ if (!defined $upload_fh) {
 # SECURITY: Ensure the input filehandle is in binary mode
 binmode $upload_fh;
 
-# SECURITY: 3-arg open and restricted permissions
-# $upload_path is already constructed above for the file count check.
-# SECURITY: Safely unlink existing regular files to prevent attacks on non-regular files (FIFOs, etc.)
-# and then use O_EXCL to ensure we create a new regular file.
-if (lstat($upload_path)) {
-    if (-l _ || ! -f _) {
-        my $san_upload_path = sanitize_for_log($upload_path);
-        warn "$remote_ip [ERROR] Refusing to overwrite non-regular file or symlink: $san_upload_path\n";
-        send_error("403 Forbidden", "Invalid target file type");
-    }
-    if (!unlink($upload_path)) {
-        my $san_upload_path = sanitize_for_log($upload_path);
-        my $san_error = sanitize_for_log($!);
-        warn "$remote_ip [ERROR] Failed to unlink $san_upload_path: $san_error\n";
-        send_error("500 Internal Server Error", "Internal server error");
-    }
-}
-
-# SECURITY: Use sysopen with O_CREAT | O_EXCL | O_NOFOLLOW to prevent symlink and race-condition attacks.
-# Mode 0600 ensures the file is initially private to the web server.
-my $flags = O_WRONLY | O_CREAT | O_EXCL;
-$flags |= O_NOFOLLOW if defined &O_NOFOLLOW;
-sysopen (my $local_fh, $upload_path, $flags, 0600) or do {
-    my $san_upload_path = sanitize_for_log($upload_path);
+# SECURITY: Create a secure temporary file in the target directory for atomic upload.
+# This ensures that incomplete or malformed uploads do not affect the final destination.
+# Mode 0600 ensures the file is private to the web server during upload.
+my ($local_fh, $temp_path) = tempfile(
+    "upload_XXXXXXXX",
+    DIR => $target_dir,
+    UNLINK => 0
+) or do {
     my $san_error = sanitize_for_log($!);
-    warn "$remote_ip [ERROR] sysopen failed for $san_upload_path: $san_error\n";
-    send_error("500 Internal Server Error", "Upload failed: Internal server error");
+    warn "$remote_ip [ERROR] tempfile failed: $san_error\n";
+    send_error("500 Internal Server Error", "Internal server error");
 };
-# SECURITY: Explicitly chmod to ensure strict permissions (0644) even if overwriting an existing file with loose permissions.
-# This is fatal because failing to enforce permissions in a shared directory is a security risk.
-chmod(0644, $local_fh) or do {
-    my $san_upload_path = sanitize_for_log($upload_path);
+
+# Ensure strict permissions on the temporary file immediately.
+chmod(0600, $local_fh) or do {
+    my $san_temp_path = sanitize_for_log($temp_path);
     my $san_error = sanitize_for_log($!);
-    warn "$remote_ip [ERROR] chmod failed for $san_upload_path: $san_error\n";
+    warn "$remote_ip [ERROR] chmod failed for $san_temp_path: $san_error\n";
     close $local_fh;
-    unlink $upload_path;
+    unlink $temp_path;
     send_error("500 Internal Server Error", "Internal server error");
 };
 binmode $local_fh;
@@ -471,11 +457,11 @@ while ($bytes_read = read($upload_fh, $buffer, 4096)) {
     $filesize += $bytes_read;
     $sha->add($buffer);
     if (!print $local_fh $buffer) {
-        my $san_upload_path = sanitize_for_log($upload_path);
+        my $san_temp_path = sanitize_for_log($temp_path);
         my $san_error = sanitize_for_log($!);
-        warn "$remote_ip [ERROR] write failed for $san_upload_path: $san_error\n";
+        warn "$remote_ip [ERROR] write failed for $san_temp_path: $san_error\n";
         close $local_fh;
-        unlink $upload_path;
+        unlink $temp_path;
         send_error("500 Internal Server Error", "Internal server error");
     }
 }
@@ -484,18 +470,48 @@ if (!defined $bytes_read && $!) {
     my $san_error = sanitize_for_log($!);
     warn "$remote_ip [ERROR] read failed from upload filehandle: $san_error\n";
     close $local_fh;
-    unlink $upload_path;
+    unlink $temp_path;
     send_error("500 Internal Server Error", "Internal server error");
 }
 if (!close $local_fh) {
-    my $san_upload_path = sanitize_for_log($upload_path);
+    my $san_temp_path = sanitize_for_log($temp_path);
     my $san_error = sanitize_for_log($!);
-    warn "$remote_ip [ERROR] close failed for $san_upload_path: $san_error\n";
-    unlink $upload_path;
+    warn "$remote_ip [ERROR] close failed for $san_temp_path: $san_error\n";
+    unlink $temp_path;
     send_error("500 Internal Server Error", "Internal server error");
 }
 
 my $digest = $sha->hexdigest;
+
+# SECURITY: Atomic move to final destination.
+# First, verify the target $upload_path type (refuse to overwrite non-regular files or symlinks).
+if (lstat($upload_path)) {
+    if (-l _ || ! -f _) {
+        my $san_upload_path = sanitize_for_log($upload_path);
+        warn "$remote_ip [ERROR] Refusing to overwrite non-regular file or symlink: $san_upload_path\n";
+        unlink $temp_path;
+        send_error("403 Forbidden", "Invalid target file type");
+    }
+}
+
+# SECURITY: Atomically rename the temporary file to the final destination.
+# We also chmod to 0644 to match the desired public accessibility.
+if (!chmod(0644, $temp_path)) {
+    my $san_temp_path = sanitize_for_log($temp_path);
+    my $san_error = sanitize_for_log($!);
+    warn "$remote_ip [ERROR] chmod failed for $san_temp_path before rename: $san_error\n";
+    unlink $temp_path;
+    send_error("500 Internal Server Error", "Internal server error");
+}
+
+if (!rename($temp_path, $upload_path)) {
+    my $san_temp_path = sanitize_for_log($temp_path);
+    my $san_upload_path = sanitize_for_log($upload_path);
+    my $san_error = sanitize_for_log($!);
+    warn "$remote_ip [ERROR] rename failed from $san_temp_path to $san_upload_path: $san_error\n";
+    unlink $temp_path;
+    send_error("500 Internal Server Error", "Internal server error");
+}
 
 # SECURITY: Audit log the upload event
 my $san_filename = sanitize_for_log($filename);
