@@ -58,7 +58,11 @@ sub send_error {
     warn "$remote_ip [ERROR] method=$method, status=$san_status, message=$san_message, ua=$san_ua\n";
     # SECURITY: Sanitize status to prevent header injection
     $status =~ s/[\r\n]//g;
-    print $cgi->header(%sec_headers, -status => $status);
+    my %error_headers = %sec_headers;
+    if ($status =~ /^405/) {
+        $error_headers{'-allow'} = 'POST';
+    }
+    print $cgi->header(%error_headers, -status => $status);
     my $esc_message = $cgi->escapeHTML($message);
     my $esc_status = $cgi->escapeHTML($status);
     my $meta_csp = $cgi->escapeHTML(get_meta_csp());
