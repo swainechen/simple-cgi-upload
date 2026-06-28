@@ -58,11 +58,12 @@ sub check_rate_limit {
         };
     }
 
-    my $ip_file = File::Spec->catfile($limit_dir, $ip);
+    my $ip_hash = Digest::SHA->new(256)->add($ip)->hexdigest;
+    my $ip_file = File::Spec->catfile($limit_dir, $ip_hash);
     my $now = time();
     my @timestamps;
 
-    if (sysopen(my $fh, $ip_file, O_RDONLY)) {
+    if (sysopen(my $fh, $ip_file, O_RDONLY | (defined &O_NOFOLLOW ? O_NOFOLLOW : 0))) {
         while (<$fh>) {
             chomp;
             push @timestamps, $_ if /^\d+$/ && $_ > ($now - $limit_window);
@@ -75,10 +76,20 @@ sub check_rate_limit {
     }
 
     push @timestamps, $now;
-    if (sysopen(my $fh, $ip_file, O_WRONLY | O_CREAT | O_TRUNC)) {
-        print $fh join("\n", @timestamps) . "\n";
-        close $fh;
-        chmod(0600, $ip_file);
+    if (sysopen(my $fh, $ip_file, O_WRONLY | O_CREAT | O_TRUNC | (defined &O_NOFOLLOW ? O_NOFOLLOW : 0))) {
+        if (print $fh join("\n", @timestamps) . "\n") {
+            close $fh;
+            chmod(0600, $ip_file);
+        } else {
+            my $san_ip = sanitize_for_log($ip);
+            my $san_error = sanitize_for_log($!);
+            warn "$san_ip [ERROR] Could not write to rate limit file: $san_error\n";
+            close $fh;
+        }
+    } else {
+        my $san_ip = sanitize_for_log($ip);
+        my $san_error = sanitize_for_log($!);
+        warn "$san_ip [ERROR] Could not open rate limit file for writing: $san_error\n";
     }
 }
 
