@@ -6,7 +6,7 @@ my $debug = 0;
 use File::Basename qw(basename fileparse_set_fstype);
 use File::Spec;
 use File::Temp qw(tempfile);
-use Fcntl qw(:DEFAULT O_RDONLY O_NOFOLLOW O_EXCL);
+use Fcntl qw(:DEFAULT O_RDONLY O_NOFOLLOW O_EXCL O_WRONLY O_CREAT O_TRUNC);
 use FindBin qw($Bin);
 use Digest::SHA;
 use CGI;
@@ -38,6 +38,48 @@ sub sanitize_for_log {
     $data = '' unless defined $data;
     $data =~ s/[^\w\ \-\.]//g;
     return $data;
+}
+
+sub check_rate_limit {
+    my ($ip, $limit_dir) = @_;
+    return unless $ip && $limit_dir;
+
+    # Limit to 10 requests per 60 seconds by default.
+    # Can be overridden via environment variables for testing.
+    my $limit_count = defined $ENV{UPLOAD_RATE_LIMIT_COUNT} ? $ENV{UPLOAD_RATE_LIMIT_COUNT} : 10;
+    my $limit_window = defined $ENV{UPLOAD_RATE_LIMIT_WINDOW} ? $ENV{UPLOAD_RATE_LIMIT_WINDOW} : 60;
+
+    if (! -d $limit_dir) {
+        mkdir $limit_dir, 0700 or do {
+            my $san_ip = sanitize_for_log($ip);
+            my $san_error = sanitize_for_log($!);
+            warn "$san_ip [ERROR] Could not create rate limit directory: $san_error\n";
+            return;
+        };
+    }
+
+    my $ip_file = File::Spec->catfile($limit_dir, $ip);
+    my $now = time();
+    my @timestamps;
+
+    if (sysopen(my $fh, $ip_file, O_RDONLY)) {
+        while (<$fh>) {
+            chomp;
+            push @timestamps, $_ if /^\d+$/ && $_ > ($now - $limit_window);
+        }
+        close $fh;
+    }
+
+    if (scalar @timestamps >= $limit_count) {
+        send_error("429 Too Many Requests", "Rate limit exceeded. Please try again later.");
+    }
+
+    push @timestamps, $now;
+    if (sysopen(my $fh, $ip_file, O_WRONLY | O_CREAT | O_TRUNC)) {
+        print $fh join("\n", @timestamps) . "\n";
+        close $fh;
+        chmod(0600, $ip_file);
+    }
 }
 
 # GLOBAL OBJECTS (pre-initialized for use in early error handling)
@@ -259,6 +301,10 @@ $CGI::MAX_PARAMS = defined $ENV{UPLOAD_MAX_PARAMS} ? $ENV{UPLOAD_MAX_PARAMS} :
 $CGI::MAX_MULTIPART_RECORDS = defined $ENV{UPLOAD_MAX_MULTIPART_RECORDS} ? $ENV{UPLOAD_MAX_MULTIPART_RECORDS} :
                               defined $config{UPLOAD_MAX_MULTIPART_RECORDS} ? $config{UPLOAD_MAX_MULTIPART_RECORDS} :
                               $CGI::MAX_MULTIPART_RECORDS;
+
+# SECURITY: Implement IP-based rate limiting to prevent DoS via rapid uploads.
+my $rate_limit_dir = $ENV{UPLOAD_RATE_LIMIT_DIR} || $config{UPLOAD_RATE_LIMIT_DIR} || File::Spec->catdir($Bin, '.rate_limit');
+check_rate_limit($remote_ip, $rate_limit_dir);
 
 $cgi = new CGI;
 
