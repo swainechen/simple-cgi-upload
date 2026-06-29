@@ -6,7 +6,7 @@ my $debug = 0;
 use File::Basename qw(basename fileparse_set_fstype);
 use File::Spec;
 use File::Temp qw(tempfile);
-use Fcntl qw(:DEFAULT O_RDONLY O_NOFOLLOW O_EXCL O_WRONLY O_CREAT O_TRUNC);
+use Fcntl qw(:DEFAULT :flock O_RDONLY O_RDWR O_NOFOLLOW O_EXCL O_WRONLY O_CREAT O_TRUNC SEEK_SET);
 use FindBin qw($Bin);
 use Digest::SHA;
 use CGI;
@@ -63,33 +63,42 @@ sub check_rate_limit {
     my $now = time();
     my @timestamps;
 
-    if (sysopen(my $fh, $ip_file, O_RDONLY | (defined &O_NOFOLLOW ? O_NOFOLLOW : 0))) {
-        while (<$fh>) {
-            chomp;
-            push @timestamps, $_ if /^\d+$/ && $_ > ($now - $limit_window);
-        }
-        close $fh;
-    }
+    # SECURITY: Use O_RDWR and LOCK_EX to prevent race conditions during rate-limit updates.
+    if (sysopen(my $fh, $ip_file, O_RDWR | O_CREAT | (defined &O_NOFOLLOW ? O_NOFOLLOW : 0))) {
+        if (flock($fh, LOCK_EX)) {
+            while (<$fh>) {
+                chomp;
+                push @timestamps, $_ if /^\d+$/ && $_ > ($now - $limit_window);
+            }
 
-    if (scalar @timestamps >= $limit_count) {
-        send_error("429 Too Many Requests", "Rate limit exceeded. Please try again later.");
-    }
+            if (scalar @timestamps >= $limit_count) {
+                close $fh; # Also releases the lock
+                send_error("429 Too Many Requests", "Rate limit exceeded. Please try again later.");
+            }
 
-    push @timestamps, $now;
-    if (sysopen(my $fh, $ip_file, O_WRONLY | O_CREAT | O_TRUNC | (defined &O_NOFOLLOW ? O_NOFOLLOW : 0))) {
-        if (print $fh join("\n", @timestamps) . "\n") {
-            close $fh;
-            chmod(0600, $ip_file);
+            push @timestamps, $now;
+            # SECURITY: Seek to beginning and truncate to atomically update the file content.
+            seek($fh, 0, SEEK_SET);
+            truncate($fh, 0);
+            if (print $fh join("\n", @timestamps) . "\n") {
+                close $fh;
+                chmod(0600, $ip_file);
+            } else {
+                my $san_ip = sanitize_for_log($ip);
+                my $san_error = sanitize_for_log($!);
+                warn "$san_ip [ERROR] Could not write to rate limit file: $san_error\n";
+                close $fh;
+            }
         } else {
             my $san_ip = sanitize_for_log($ip);
             my $san_error = sanitize_for_log($!);
-            warn "$san_ip [ERROR] Could not write to rate limit file: $san_error\n";
+            warn "$san_ip [ERROR] Could not lock rate limit file: $san_error\n";
             close $fh;
         }
     } else {
         my $san_ip = sanitize_for_log($ip);
         my $san_error = sanitize_for_log($!);
-        warn "$san_ip [ERROR] Could not open rate limit file for writing: $san_error\n";
+        warn "$san_ip [ERROR] Could not open rate limit file: $san_error\n";
     }
 }
 
