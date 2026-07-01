@@ -49,7 +49,14 @@ sub check_rate_limit {
     my $limit_count = defined $ENV{UPLOAD_RATE_LIMIT_COUNT} ? $ENV{UPLOAD_RATE_LIMIT_COUNT} : 10;
     my $limit_window = defined $ENV{UPLOAD_RATE_LIMIT_WINDOW} ? $ENV{UPLOAD_RATE_LIMIT_WINDOW} : 60;
 
-    if (! -d $limit_dir) {
+    # SECURITY: Verify rate limit directory exists, is a directory, and not a symlink.
+    if (lstat($limit_dir)) {
+        if (! -d _ || -l _) {
+            my $san_ip = sanitize_for_log($ip);
+            warn "$san_ip [ERROR] Rate limit directory is invalid or a symlink\n";
+            return;
+        }
+    } else {
         mkdir $limit_dir, 0700 or do {
             my $san_ip = sanitize_for_log($ip);
             my $san_error = sanitize_for_log($!);
@@ -64,7 +71,8 @@ sub check_rate_limit {
     my @timestamps;
 
     # SECURITY: Use O_RDWR and LOCK_EX to prevent race conditions during rate-limit updates.
-    if (sysopen(my $fh, $ip_file, O_RDWR | O_CREAT | (defined &O_NOFOLLOW ? O_NOFOLLOW : 0))) {
+    # Explicitly set 0600 permissions on creation.
+    if (sysopen(my $fh, $ip_file, O_RDWR | O_CREAT | (defined &O_NOFOLLOW ? O_NOFOLLOW : 0), 0600)) {
         if (flock($fh, LOCK_EX)) {
             while (<$fh>) {
                 chomp;
