@@ -73,6 +73,13 @@ sub check_rate_limit {
     # SECURITY: Use O_RDWR and LOCK_EX to prevent race conditions during rate-limit updates.
     # Explicitly set 0600 permissions on creation.
     if (sysopen(my $fh, $ip_file, O_RDWR | O_CREAT | (defined &O_NOFOLLOW ? O_NOFOLLOW : 0), 0600)) {
+        # SECURITY: Verify the filehandle refers to a regular file to prevent TOCTOU and special file attacks.
+        if (! -f $fh) {
+            my $san_ip = sanitize_for_log($ip);
+            warn "$san_ip [ERROR] Rate limit file is not a regular file\n";
+            close $fh;
+            return;
+        }
         if (flock($fh, LOCK_EX)) {
             while (<$fh>) {
                 chomp;
@@ -117,19 +124,30 @@ my %sec_headers;
 # SECURITY: Centralized error handling
 sub send_error {
     my ($status, $message) = @_;
-    # SECURITY: Ensure we have a CGI object for headers if not yet initialized
-    $cgi ||= new CGI;
     # SECURITY: Sanitize for logging to prevent log injection
     my $san_status = sanitize_for_log($status);
     my $san_message = sanitize_for_log($message);
-    my $raw_ua = $cgi->user_agent() || '';
-    my $san_ua = sanitize_for_log(substr($raw_ua, 0, 255));
-    my $method = sanitize_for_log($cgi->request_method() || 'unknown');
-    warn "$remote_ip [ERROR] method=$method, status=$san_status, message=$san_message, ua=$san_ua\n";
+
+    my ($method, $ua);
+    if ($cgi) {
+        $method = $cgi->request_method();
+        $ua = $cgi->user_agent();
+    } else {
+        $method = $ENV{REQUEST_METHOD};
+        $ua = $ENV{HTTP_USER_AGENT};
+        # SECURITY: Disable body parsing if we haven't initialized CGI yet
+        $CGI::POST_MAX = 0;
+        $cgi = new CGI;
+    }
+
+    my $san_method = sanitize_for_log($method || 'unknown');
+    my $san_ua = sanitize_for_log(substr($ua || '', 0, 255));
+
+    warn "$remote_ip [ERROR] method=$san_method, status=$san_status, message=$san_message, ua=$san_ua\n";
     # SECURITY: Sanitize status to prevent header injection
     $status =~ s/[\r\n]//g;
     my %error_headers = %sec_headers;
-    if ($status =~ /^405/) {
+    if ($status =~ /\b405\b/) {
         $error_headers{'-allow'} = 'POST';
     }
     print $cgi->header(%error_headers, -status => $status);
@@ -334,6 +352,16 @@ $CGI::MAX_MULTIPART_RECORDS = defined $ENV{UPLOAD_MAX_MULTIPART_RECORDS} ? $ENV{
 my $rate_limit_dir = $ENV{UPLOAD_RATE_LIMIT_DIR} || $config{UPLOAD_RATE_LIMIT_DIR} || File::Spec->catdir($Bin, '.rate_limit');
 check_rate_limit($remote_ip, $rate_limit_dir);
 
+# SECURITY: Enforce POST method early to prevent resource exhaustion from body parsing of invalid requests.
+if (($ENV{REQUEST_METHOD} || '') ne 'POST') {
+    send_error("405 Method Not Allowed", "This script only accepts POST requests.");
+}
+
+# SECURITY: Enforce multipart/form-data content type early for file uploads.
+if (($ENV{CONTENT_TYPE} || '') !~ m|^multipart/form-data|i) {
+    send_error("400 Bad Request", "Invalid Content-Type. Expected multipart/form-data.");
+}
+
 $cgi = new CGI;
 
 # SECURITY: Global check for null bytes in all request parameter names and values to prevent injection.
@@ -341,16 +369,6 @@ for my $p ($cgi->multi_param) {
     if ($p =~ /\0/ || grep { /\0/ } $cgi->multi_param($p)) {
         send_error("400 Bad Request", "Invalid input detected");
     }
-}
-
-# SECURITY: Enforce POST method to prevent accidental script triggering and information disclosure.
-if (($cgi->request_method() || '') ne 'POST') {
-    send_error("405 Method Not Allowed", "This script only accepts POST requests.");
-}
-
-# SECURITY: Enforce multipart/form-data content type for file uploads.
-if (($cgi->content_type() || '') !~ m|^multipart/form-data|i) {
-    send_error("400 Bad Request", "Invalid Content-Type. Expected multipart/form-data.");
 }
 
 # $base_dir is an actual path on your local file system that's accessible to the html server
