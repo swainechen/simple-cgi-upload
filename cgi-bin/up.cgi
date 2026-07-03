@@ -497,7 +497,9 @@ if ($is_new || $incoming_size > $existing_size) {
     my $file_count = 0;
     my $total_size = 0;
     while (my $entry = readdir($dh)) {
-        if (-f File::Spec->catfile($target_dir, $entry)) {
+        # SECURITY: Use lstat and verify -f _ && ! -l _ to ensure only regular files
+        # (and NOT symbolic links) are counted. This prevents symlink-based quota bypass.
+        if (lstat(File::Spec->catfile($target_dir, $entry)) && -f _ && ! -l _) {
             $file_count++;
             $total_size += -s _;
         }
