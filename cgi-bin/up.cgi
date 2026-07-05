@@ -362,6 +362,12 @@ if (($ENV{CONTENT_TYPE} || '') !~ m|^multipart/form-data|i) {
     send_error("400 Bad Request", "Invalid Content-Type. Expected multipart/form-data.");
 }
 
+# SECURITY: Validate CONTENT_LENGTH against POST_MAX BEFORE instantiating CGI
+# to prevent DoS via resource exhaustion during body parsing.
+if (defined $ENV{CONTENT_LENGTH} && $ENV{CONTENT_LENGTH} > $CGI::POST_MAX) {
+    send_error("413 Request Entity Too Large", "The uploaded file is too large.");
+}
+
 $cgi = new CGI;
 
 # SECURITY: Global check for null bytes in all request parameter names and values to prevent injection.
@@ -377,10 +383,11 @@ my $base_dir = $ENV{UPLOAD_BASE_DIR} || $config{UPLOAD_BASE_DIR} || "/var/www/ht
 my $base_url = $ENV{UPLOAD_BASE_URL} || $config{UPLOAD_BASE_URL} || "http://server/files";
 
 # SECURITY: Basic validation for base_url and base_dir. Fail early if misconfigured.
-if (!$base_dir || $base_dir !~ m|^/|) {
+# Use anchored regex and length limits for defense-in-depth.
+if (!$base_dir || length($base_dir) > 255 || $base_dir !~ m|^/[\w\.\-/]*$|) {
     send_error("500 Internal Server Error", "Invalid UPLOAD_BASE_DIR configuration");
 }
-if (!$base_url || $base_url !~ m!^(?:https?://|/)!) {
+if (!$base_url || length($base_url) > 255 || $base_url !~ m!^(?:https?://|/)[\w\.\-/:%&?=#]*$!) {
     send_error("500 Internal Server Error", "Invalid UPLOAD_BASE_URL configuration");
 }
 
