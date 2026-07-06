@@ -50,10 +50,11 @@ sub check_rate_limit {
     my $limit_window = defined $ENV{UPLOAD_RATE_LIMIT_WINDOW} ? $ENV{UPLOAD_RATE_LIMIT_WINDOW} : 60;
 
     # SECURITY: Verify rate limit directory exists, is a directory, and not a symlink.
+    # Also ensure it is NOT world-writable to prevent malicious manipulation.
     if (lstat($limit_dir)) {
-        if (! -d _ || -l _) {
+        if (! -d _ || -l _ || (stat(_))[2] & 0002) {
             my $san_ip = sanitize_for_log($ip);
-            warn "$san_ip [ERROR] Rate limit directory is invalid or a symlink\n";
+            warn "$san_ip [ERROR] Rate limit directory is invalid, a symlink, or world-writable\n";
             return;
         }
     } else {
@@ -73,17 +74,18 @@ sub check_rate_limit {
     # SECURITY: Use O_RDWR and LOCK_EX to prevent race conditions during rate-limit updates.
     # Explicitly set 0600 permissions on creation.
     if (sysopen(my $fh, $ip_file, O_RDWR | O_CREAT | (defined &O_NOFOLLOW ? O_NOFOLLOW : 0), 0600)) {
-        # SECURITY: Verify the filehandle refers to a regular file to prevent TOCTOU and special file attacks.
-        if (! -f $fh) {
+        # SECURITY: Verify filehandle refers to a regular file and is NOT world-writable.
+        if (! -f $fh || (stat($fh))[2] & 0002) {
             my $san_ip = sanitize_for_log($ip);
-            warn "$san_ip [ERROR] Rate limit file is not a regular file\n";
+            warn "$san_ip [ERROR] Rate limit file is invalid or world-writable\n";
             close $fh;
             return;
         }
         if (flock($fh, LOCK_EX)) {
             while (<$fh>) {
                 chomp;
-                push @timestamps, $_ if /^\d+$/ && $_ > ($now - $limit_window);
+                # SECURITY: Enforce length limit and digit validation for timestamps.
+                push @timestamps, $_ if length($_) <= 32 && /^\d+$/ && $_ > ($now - $limit_window);
             }
 
             if (scalar @timestamps >= $limit_count) {
@@ -187,7 +189,8 @@ sub parse_config_file {
         return %config;
     };
     # SECURITY: Re-verify filehandle refers to a regular file and check size again to prevent TOCTOU.
-    if (! -f $fh || -s $fh >= 65536) {
+    # Also ensure the configuration file is NOT world-writable.
+    if (! -f $fh || -s $fh >= 65536 || (stat($fh))[2] & 0002) {
         close $fh;
         return %config;
     }
